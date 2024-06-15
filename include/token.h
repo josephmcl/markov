@@ -10,28 +10,30 @@
 #define KEYWORD_TOKENS 96
 
 typedef enum {
-    UNKNOWN          = -2,
-    START_OF_CONTENT = -1, // TODO: unused
-    END_OF_CONTENT   = 0, 
-    ESCAPE           = 1,
-    LINE_END         = 2,
-    LINE_COMMENT     = 3,
-    IDENTIFIER       = 4,
+    TOKEN_UNUSED_BY_PARSER = -4,
+    TOKEN_UNSUPPORTED_BY_PARSER = -3,
+    TOKEN_UNKNOWN          = -2,
+    TOKEN_START_OF_CONTENT = -1, // TODO: unused
+    TOKEN_END_OF_CONTENT   = 0, 
+    TOKEN_ESCAPE           = 1,
+    TOKEN_LINE_END         = 2,
+    TOKEN_LINE_COMMENT     = 3,
+    TOKEN_IDENTIFIER       = 4,
     
-    IN               = MULTI_BYTE_TOKENS,     // ∈ [1.2.5]
-    NOT              = MULTI_BYTE_TOKENS + 1, // ¬ [1.2.5]
-    EXTENDS          = MULTI_BYTE_TOKENS + 2, // ⊂ [1.2.7]
+    TOKEN_IN               = MULTI_BYTE_TOKENS,     // ∈ [1.2.5]
+    TOKEN_NOT              = MULTI_BYTE_TOKENS + 1, // ¬ [1.2.5]
+    TOKEN_EXTENDS          = MULTI_BYTE_TOKENS + 2, // ⊂ [1.2.7]
 
-    EQUAL            = SINGLE_BYTE_TOKENS,      // = [1.2.6]
-    COMMA            = SINGLE_BYTE_TOKENS + 1,  // , [1.2.6]
-    LCURL            = SINGLE_BYTE_TOKENS + 2,  // { [1.2.6]
-    RCURL            = SINGLE_BYTE_TOKENS + 3,  // } [1.2.6]
-    SEMICOLON        = SINGLE_BYTE_TOKENS + 4,  // ; [1.2.6]
-    PERIOD           = SINGLE_BYTE_TOKENS + 5,  // . [1.2.6]
+    TOKEN_EQUAL            = SINGLE_BYTE_TOKENS,      // = [1.2.6]
+    TOKEN_COMMA            = SINGLE_BYTE_TOKENS + 1,  // , [1.2.6]
+    TOKEN_LCURL            = SINGLE_BYTE_TOKENS + 2,  // { [1.2.6]
+    TOKEN_RCURL            = SINGLE_BYTE_TOKENS + 3,  // } [1.2.6]
+    TOKEN_SEMICOLON        = SINGLE_BYTE_TOKENS + 4,  // ; [1.2.6]
+    TOKEN_PERIOD           = SINGLE_BYTE_TOKENS + 5,  // . [1.2.6]
 
-    EN_IN            = KEYWORD_TOKENS,      // in [1.2.5]
-    EN_NOT           = KEYWORD_TOKENS + 1,  // not [1.2.6]
-    EN_EXTENDS       = KEYWORD_TOKENS + 2,  // extends [1.2.6]
+    TOKEN_EN_IN            = KEYWORD_TOKENS,      // in [1.2.5]
+    TOKEN_EN_NOT           = KEYWORD_TOKENS + 1,  // not [1.2.6]
+    TOKEN_EN_EXTENDS       = KEYWORD_TOKENS + 2,  // extends [1.2.6]
 
 } lexical_token;
 

@@ -49,7 +49,7 @@ lexical_store lexer_next() {
     head = TheInfo.current;
     /* END_OF_CONTENT */
     if (TheFile.end - head <= 0) {
-        rv.token = END_OF_CONTENT;
+        rv.token = TOKEN_END_OF_CONTENT;
         rv.begin = TheInfo.current;
         rv.end = TheFile.end;
         return rv;
@@ -61,7 +61,7 @@ lexical_store lexer_next() {
 
     /* END_OF_CONTENT */
     if (TheFile.end - head <= 0) {
-        rv.token = END_OF_CONTENT;
+        rv.token = TOKEN_END_OF_CONTENT;
         rv.begin = TheInfo.current;
         rv.end = TheFile.end;
         return rv;
@@ -82,7 +82,7 @@ lexical_store lexer_next() {
 
     }
     /* SINGLE BYTE TOKENS */
-    else if ((token = single_byte_token(*head)) != UNKNOWN) {
+    else if ((token = single_byte_token(*head)) != TOKEN_UNKNOWN) {
         rv.end = head + 1;
         rv.token = token;
     }
@@ -96,19 +96,19 @@ lexical_store lexer_next() {
     /* IDENTIFIER */
     else if ((offset = identifier(head)) != head) {
         rv.end = offset;
-        rv.token = IDENTIFIER;
+        rv.token = TOKEN_IDENTIFIER;
     }
     else if (*head == '\\') {
         rv.end = head + 1;
-        rv.token = ESCAPE;
+        rv.token = TOKEN_ESCAPE;
     }
     /* LINE END */
     else if (*head == '\n') {
-        rv.token = LINE_END;
+        rv.token = TOKEN_LINE_END;
         rv.end = head + 1;
     }
     else {
-        rv.token = UNKNOWN;
+        rv.token = TOKEN_UNKNOWN;
         rv.end = head + utf8_code_point_length(*head);
     }
  
@@ -199,7 +199,7 @@ int analyze() {
     TheInfo.line_length = 0;
 
     token_length = 0;
-    while ((next = lexer_next()).token != END_OF_CONTENT) {
+    while ((next = lexer_next()).token != TOKEN_END_OF_CONTENT) {
         token_length = next.end - next.begin;
         TheInfo.line_length += token_length + next.begin - TheInfo.current;
 
@@ -207,7 +207,7 @@ int analyze() {
         next.column = TheInfo.columns;
 
         switch (next.token) {
-        case LINE_END: {
+        case TOKEN_LINE_END: {
             TheInfo.rows += 1;
             if (TheInfo.line_length > TheInfo.rows)
                 TheInfo.columns = TheInfo.line_length;
@@ -216,7 +216,7 @@ int analyze() {
             push_token(next);
         } break;
 
-        case UNKNOWN: {
+        case TOKEN_UNKNOWN: {
             temp = line_blurb(next.end);
             fprintf(stderr, "%s:%d:%d: "error_s
                 " unknown symbol" "\n"
@@ -243,28 +243,45 @@ int analyze() {
 } 
 
 void lexer_print() {
-    int i, j, token_length;
+    int i, j;
     lexical_store *token;
-    uint8_t *temp;
+    uint8_t *token_string;
+    size_t token_length;
     
     for (i = 0; i < TheInfo.count; i++) {
+
+        /* Get current token */
         token = (TheTokens + i);
+
+        /* Calculate number of bytes that comprises the token. */
         token_length = token->end - token->begin;
-        if(token->token < 10)
+
+        if(token->token < 32)
+            /* Print the string identifier of the token. */
             printf("%s ", token_names[token->token]);
         else 
+            /* Some tokens do not have a string identifer so print 
+               their integer identifier. */
             printf("<%d> ", token->token);
-        temp = (uint8_t *) calloc(token_length + 1, sizeof(uint8_t));
 
-        memcpy(temp, token->begin, token_length);
-
+        /* Copy the bytes that comprise the token. */     
+        token_string = (uint8_t *) 
+            calloc(token_length + 1, sizeof(uint8_t));
+        memcpy(token_string, token->begin, token_length);
+        
+        /* Replace any nasty stuff with whitespace. */
         for (j = 0; j < token_length; ++j)
-            temp[j] = bleach(temp[j]);
+            token_string[j] = bleach(token_string[j]);
+        
+        /* Print the bytes that comprise the token, and the number 
+           of bytes. Due to UTF-8 this may be greater than the number
+           of columns printed. */
+        printf("[%s] [%lu]\n", token_string, token_length);
 
-        printf("[%s] [%d]\n", temp, token_length);
-
-        free(temp);
+        /* Free up copied token bytes. */
+        free(token_string);
     }
+
     printf("\n");
     return;
 }
@@ -272,7 +289,7 @@ void lexer_print() {
 lexical_token lexer_get_token(size_t index) {
 
     if (index > TheInfo.count)
-        return UNKNOWN;
+        return TOKEN_UNKNOWN;
 
     return TheTokens[index].token; 
 }
@@ -285,6 +302,34 @@ lexical_store *lexer_get_store(size_t index) {
     return (TheTokens + index); 
 }
 
+
+int lexer_get_token_bison_compat(size_t index) {
+    if (index > TheInfo.count)
+        return TOKEN_UNKNOWN;
+    int token = TheTokens[index].token;
+    switch (token) {
+        case TOKEN_END_OF_CONTENT: return TOKEN_END_OF_CONTENT;
+        case TOKEN_LINE_END: return TOKEN_UNUSED_BY_PARSER;
+        case TOKEN_IDENTIFIER: return IDENTIFIER;
+        case TOKEN_IN: return IN;
+        case TOKEN_NOT: return NOT;
+        case TOKEN_EXTENDS: return EXTENDS;
+        case TOKEN_EQUAL: return EQUAL;
+        case TOKEN_COMMA: return COMMA;
+        case TOKEN_LCURL: return LCURL;
+        case TOKEN_RCURL: return RCURL;
+        case TOKEN_SEMICOLON: return SEMICOLON;
+        case TOKEN_PERIOD: return PERIOD;
+        case TOKEN_EN_IN: return EN_IN;
+        case TOKEN_EN_NOT: return EN_NOT;
+        case TOKEN_EN_EXTENDS: return EN_EXTENDS;
+        default: {
+            printf("stray token, %d\n", token);
+            return TOKEN_UNSUPPORTED_BY_PARSER;
+        }
+    }
+}
+
 const struct lex Lex = {
     .file = &TheFile,
     .info = &TheInfo,
@@ -295,5 +340,7 @@ const struct lex Lex = {
     .read = lexer_read,
     .free = lexer_free,
     .analyze = analyze,
-    .print = lexer_print
+    .print = lexer_print,
+
+    .bison_token = lexer_get_token_bison_compat
 };

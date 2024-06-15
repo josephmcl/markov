@@ -40,7 +40,7 @@ int is_escape(uint8_t c) {
 
 uint8_t *identifier(uint8_t *head) {
     while (utf8_whitespace(head) != 0 
-        && single_byte_token(*head) == UNKNOWN
+        && single_byte_token(*head) == TOKEN_UNKNOWN
         && *head != '\n') {
         int sp = utf8_code_point_length(*head);
         if (sp == 0) {
@@ -150,12 +150,12 @@ uint16_t keyword_token(uint8_t *s, uint8_t *end) {
 
 lexical_token single_byte_token(uint8_t c) {
     switch (c) {
-    case '=': return EQUAL;
-    case ',': return COMMA;
-    case '{': return LCURL;
-    case '}': return RCURL;
-    case ';': return SEMICOLON;
-    case '.': return PERIOD;
-    default: return UNKNOWN;
+    case '=': return TOKEN_EQUAL;
+    case ',': return TOKEN_COMMA;
+    case '{': return TOKEN_LCURL;
+    case '}': return TOKEN_RCURL;
+    case ';': return TOKEN_SEMICOLON;
+    case '.': return TOKEN_PERIOD;
+    default: return TOKEN_UNKNOWN;
     }
 }

@@ -9,6 +9,8 @@
 #include "codepoint.h"
 #include "token.h"
 
+#include "bison.h"
+
 typedef lexical_store *lexical_stores;
 typedef struct {
     int count;
@@ -31,6 +33,7 @@ struct lex {
     void ( *free)();
     int ( *analyze)();
     void ( *print)();
+    int ( *bison_token) (size_t index);
 };
 
 extern const struct lex Lex;

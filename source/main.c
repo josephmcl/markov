@@ -1,4 +1,7 @@
 #include "lex.h"
+#include "bison.h"
+
+extern int yyparse (void);
 
 int main(int argc, char **argv) {
 
@@ -9,9 +12,13 @@ int main(int argc, char **argv) {
     
     Lex.analyze();
 
-    Lex.print();
+    // Lex.print();
 
-    Lex.free();
+    // Lex.free();
+
+    int error = yyparse();
+
+    printf("%d\n", error);
 
     return 0;
 }
