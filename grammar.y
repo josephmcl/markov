@@ -52,38 +52,38 @@
 %%
 
 program 
-    : statements { syntax_store *s = Syntax.append(); }
+    : statements { syntax_store *s = Syntax.push(); }
     ;
 statements  
     : {}
-    | statements statementz PERIOD { syntax_store *s = Syntax.append(); }
+    | statements statementz PERIOD { syntax_store *s = Syntax.push(); }
     ;
 statementz 
-    : statement { syntax_store *s = Syntax.append(); }
-    | statementz SEMICOLON statement { syntax_store *s = Syntax.append(); }
+    : statement { syntax_store *s = Syntax.push(); }
+    | statementz SEMICOLON statement { syntax_store *s = Syntax.push(); }
 statement 
-    : l_expression EQUAL r_expression { syntax_store *s = Syntax.append(); }
+    : l_expression EQUAL r_expression { syntax_store *s = Syntax.push(); }
     ;
 l_expression 
-    : IDENTIFIER { syntax_store *s = Syntax.append(); }
+    : IDENTIFIER { syntax_store *s = Syntax.push(); }
     ;
 r_expression
-    : alphabet_body { syntax_store *s = Syntax.append(); }
+    : alphabet_body { syntax_store *s = Syntax.push(); }
     ;
 alphabet_body
-    : LCURL u_letters RCURL { syntax_store *s = Syntax.append(); }
+    : LCURL u_letters RCURL { syntax_store *s = Syntax.push(); }
     ;
 u_letters
     :  {}
-    | letters { syntax_store *s = Syntax.append(); }
+    | letters { syntax_store *s = Syntax.push(); }
     ;
 letters
-    : letter { syntax_store *s = Syntax.append(); }
-    | letters COMMA letter { syntax_store *s = Syntax.append(); }
+    : letter { syntax_store *s = Syntax.push(); }
+    | letters COMMA letter { syntax_store *s = Syntax.push(); }
     ;
 letter
     : IDENTIFIER { 
-        syntax_store *s = Syntax.append();
+        syntax_store *s = Syntax.push();
         lexical_store *l = Lex.store(TheIndex);
         //printf("%lu\n", TheIndex); 
         //printf("\'%.*s\'\n", l->end - l->begin, l->begin);

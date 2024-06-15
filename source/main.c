@@ -1,24 +1,23 @@
 #include "lex.h"
-#include "bison.h"
-
-extern int yyparse (void);
+#include "syntax.h"
 
 int main(int argc, char **argv) {
 
     if (argc < 2)
         exit(-1);
-    
+        
+    /* Read in file from stdin.        */
     Lex.read(argv[1]);
     
+    /* Lex the file into tokens.       */
     Lex.analyze();
 
-    // Lex.print();
+    /* Parse the tokens into an AST.   */
+    Syntax.parse();
 
-    // Lex.free();
-
-    int error = yyparse();
-
-    printf("%d\n", error);
+    /* Free all of the memory we used. */
+    Syntax.free();
+    Lex.free();
 
     return 0;
 }
