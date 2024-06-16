@@ -204,13 +204,14 @@ int analyze() {
         TheInfo.line_length += token_length + next.begin - TheInfo.current;
 
         next.row = TheInfo.line_length;
-        next.column = TheInfo.columns;
+        next.column = TheInfo.columns + 1;
 
         switch (next.token) {
         case TOKEN_LINE_END: {
             TheInfo.rows += 1;
             if (TheInfo.line_length > TheInfo.rows)
-                TheInfo.columns = TheInfo.line_length;
+                TheInfo.columns += 1;
+                //TheInfo.columns = TheInfo.line_length;
             TheInfo.line_length = 0;
             TheInfo.prior_newline = next.end;
             push_token(next);

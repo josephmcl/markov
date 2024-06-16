@@ -7,7 +7,7 @@ include .env
 target = main
 
 cc = gcc-13
-bc = bison
+bc = /opt/homebrew/Cellar/bison/3.8.2/bin/bison
 
 nil := 
 space := $(nil) $(nil)
@@ -58,7 +58,7 @@ $(bison_object): $(bison_source)
 
 $(bison_source): $(bison_grammar)
 	$(call speaker,\
-	$(bc) $< --output=$@ --define=$(bison_header))
+	$(bc) $< --output=$@ --defines=$(bison_header))
 
 .PHONY: clean
 clean:
