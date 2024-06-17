@@ -22,6 +22,7 @@ bison_header = $(header_directory)/bison.h
 bison_object = $(object_directory)/bison.o
 bison_grammar = grammar.y
 sources = $(wildcard $(source_directory)/*.c)
+sources += $(wildcard $(source_directory)/algorithm/*.c)
 headers = $(wildcard $(header_directory)/*.h)
 objects := $(sources:$(source_directory)/%.c=$(object_directory)/%.o)
 
@@ -49,6 +50,8 @@ $(binary_directory)/$(target): $(bison_object) $(objects)
 	$(cc) $(objects) $(bison_object) -o $@ $(libraries))
 
 $(objects): $(object_directory)/%.o: $(source_directory)/%.$(source_ext) 
+	mkdir -p object
+	mkdir -p object/algorithm
 	$(call speaker,\
 	$(cc) $(compiler_flags) -c $< -o $@ $(includes)) 
 

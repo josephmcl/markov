@@ -50,6 +50,7 @@
 %token IN     
 %token NOT 
 %token EXTENDS  
+%token DOUBLE_COLON 
 
 %token EQUAL 
 %token COMMA    
@@ -57,6 +58,8 @@
 %token RCURL         
 %token SEMICOLON   
 %token PERIOD      
+%token LANGLE
+%token RANGLE
 
 %token EN_IN          
 %token EN_NOT          
@@ -78,6 +81,28 @@ program
 statements  
     : {}
     | statements statementz PERIOD { }
+    | statements scope { }
+    ;
+scope 
+    : scope_name LCURL statements RCURL {}
+    ;
+scope_name 
+    : {}
+    | IDENTIFIER {}
+    | IDENTIFIER LANGLE u_inherited_scope_names RANGLE {}
+    ;
+u_inherited_scope_names
+    : { /* TODO:  Raise error here. We don't want to allow empty 
+        inhereited scope name lists */ }
+    | inherited_scope_names {}
+    ;
+inherited_scope_names
+    : inherited_scope_name {}
+    | inherited_scope_names COMMA inherited_scope_name {}
+    ;
+inherited_scope_name
+    : IDENTIFIER {}
+    | inherited_scope_name DOUBLE_COLON IDENTIFIER {}
     ;
 statementz 
     : statement { }

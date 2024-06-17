@@ -56,8 +56,10 @@ lexical_store lexer_next() {
     }
 
     /* consume any whitespace */
-    while (utf8_whitespace(head) == 0) 
+    while (utf8_whitespace(head) == 0) {
         head += utf8_code_point_length(*head);
+        rv.space_prior += 1;
+    }
 
     /* END_OF_CONTENT */
     if (TheFile.end - head <= 0) {
@@ -315,10 +317,13 @@ int lexer_get_token_bison_compat(size_t index) {
         case TOKEN_IN: return IN;
         case TOKEN_NOT: return NOT;
         case TOKEN_EXTENDS: return EXTENDS;
+        case TOKEN_DOUBLE_COLON: return DOUBLE_COLON;
         case TOKEN_EQUAL: return EQUAL;
         case TOKEN_COMMA: return COMMA;
         case TOKEN_LCURL: return LCURL;
         case TOKEN_RCURL: return RCURL;
+        case TOKEN_LANGLE: return LANGLE;
+        case TOKEN_RANGLE: return RANGLE;
         case TOKEN_SEMICOLON: return SEMICOLON;
         case TOKEN_PERIOD: return PERIOD;
         case TOKEN_EN_IN: return EN_IN;

@@ -97,6 +97,7 @@ static uint8_t multi_byte_tokens[MB_TOKS * MB_TOKS_OFFSET] = {
     "∈\t"
     "¬\t "
     "⊂\t"
+    "::\t"
 };
 
 uint16_t multi_byte_token(uint8_t *s, uint8_t *end) {
@@ -156,6 +157,8 @@ lexical_token single_byte_token(uint8_t c) {
     case '}': return TOKEN_RCURL;
     case ';': return TOKEN_SEMICOLON;
     case '.': return TOKEN_PERIOD;
+    case '<': return TOKEN_LANGLE;
+    case '>': return TOKEN_RANGLE;
     default: return TOKEN_UNKNOWN;
     }
 }

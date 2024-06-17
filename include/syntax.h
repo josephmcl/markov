@@ -1,9 +1,11 @@
 #pragma once 
 
 #include "string.h"
+#include "stdbool.h"
 
 #include "lex.h"
 #include "bison.h"
+#include "algorithm/memory_compare.h"
 
 
 typedef enum {

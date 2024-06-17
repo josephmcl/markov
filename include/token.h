@@ -20,9 +20,10 @@ typedef enum {
     TOKEN_LINE_COMMENT     = 3,
     TOKEN_IDENTIFIER       = 4,
     
-    TOKEN_IN               = MULTI_BYTE_TOKENS,     // ∈ [1.2.5]
-    TOKEN_NOT              = MULTI_BYTE_TOKENS + 1, // ¬ [1.2.5]
-    TOKEN_EXTENDS          = MULTI_BYTE_TOKENS + 2, // ⊂ [1.2.7]
+    TOKEN_IN               = MULTI_BYTE_TOKENS,     // ∈  [1.2.5]
+    TOKEN_NOT              = MULTI_BYTE_TOKENS + 1, // ¬  [1.2.5]
+    TOKEN_EXTENDS          = MULTI_BYTE_TOKENS + 2, // ⊂  [1.2.7]
+    TOKEN_DOUBLE_COLON     = MULTI_BYTE_TOKENS + 3, // :: [Extended]
 
     TOKEN_EQUAL            = SINGLE_BYTE_TOKENS,      // = [1.2.6]
     TOKEN_COMMA            = SINGLE_BYTE_TOKENS + 1,  // , [1.2.6]
@@ -30,6 +31,8 @@ typedef enum {
     TOKEN_RCURL            = SINGLE_BYTE_TOKENS + 3,  // } [1.2.6]
     TOKEN_SEMICOLON        = SINGLE_BYTE_TOKENS + 4,  // ; [1.2.6]
     TOKEN_PERIOD           = SINGLE_BYTE_TOKENS + 5,  // . [1.2.6]
+    TOKEN_LANGLE           = SINGLE_BYTE_TOKENS + 6,  // < [Extended]
+    TOKEN_RANGLE           = SINGLE_BYTE_TOKENS + 7,  // > [Extended]
 
     TOKEN_EN_IN            = KEYWORD_TOKENS,      // in [1.2.5]
     TOKEN_EN_NOT           = KEYWORD_TOKENS + 1,  // not [1.2.6]
@@ -39,9 +42,8 @@ typedef enum {
 
 typedef struct {
     lexical_token token;
-    uint8_t *begin;
-    uint8_t *end;
-    unsigned int row, column;
+    uint8_t *begin, *end;
+    unsigned int row, column, space_prior;
 } lexical_store;
 
 extern const char *token_names[];

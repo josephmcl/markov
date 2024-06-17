@@ -29,42 +29,67 @@ syntax_store *syntax_push(void) {
     return TheTree + TheInfo.count;
 }
 
-uint32_t maxspn(uint8_t *a, size_t as, uint8_t *b, size_t bs) {
+bool _letters_identical(
+    uint8_t      **letters, 
+    size_t        *lengths, 
+    syntax_store  *store) {
     
-    uint8_t *ap = (uint8_t *)a;           /* pointer to a       */
-    uint32_t max = 0;                 /* max substring char */
-    uint32_t maxi = 0;
-    uint32_t maxj = 0;
-    for (size_t i = 0; i < as; ++i) {
-        ap = a + i;
-        uint8_t *bp;
-        for (size_t j = 0; j < bs; ++j) {
-            bp = b + j;
-            uint8_t *tmp = memchr(bp, *ap, bs - j);
-            if (tmp == NULL) 
-                break;
+    lexical_store *lstore;
 
-            j += tmp - bp;
-            bp = tmp;
-
-            uint8_t *spa, *spb;
-            size_t len = 0;         /* find substring len */
-            for (size_t k = 0; i + k < as && j + k < bs; ++k) {
-                spa = ap + k;
-                spb = bp + k;
-                if (*spa != *spb) 
-                    break;
-                len++;
-            } 
-            if (len > max) {
-                max = len;
-                maxi = i;
-                maxj = j;
+    bool res = false;
+    for (size_t i = 0; i < store->size - 1; ++i) {
+        for (size_t j = i + 1; j < store->size; ++j) {
+            
+            if (lengths[i] == lengths[j] && 
+                memcmp(letters[i], letters[j], lengths[i]) == 0) {
+                lstore = Lex.store(store->content[i]->token_index);
+                printf("%s:%u:%u: error: alphabet definition is "
+                    "ambiguous and contains multiple instances of "
+                    "the same letter \'%.*s\'.\n", Lex.file->name,  
+                    lstore->column, lstore->row, (int) lengths[i],  
+                    letters[i]);
+                res = true;
             }
         }
     }
+    return res;
+}
 
-    return (maxi << 16) + (maxj << 8) + (max);
+bool _letters_ambiguous(
+    uint8_t      **letters, 
+    size_t        *lengths, 
+    syntax_store  *store) {
+    
+    lexical_store *lstore;
+    uint32_t  max;
+
+    bool res = false;
+    for (size_t i = 0; i < store->size - 1; ++i) {
+        for (size_t j = i + 1; j < store->size; ++j) {
+            max = max_shared_vlaues(letters[i], lengths[i], 
+                            letters[j], lengths[j]);
+            size_t m = max & 0xFF;
+            if (m >= lengths[i]) {
+                lstore = Lex.store(store->content[j]->token_index);
+                printf("%s:%u:%u: error: alphabet definition is "
+                    "ambiguous. Letter \'%.*s\' contains entirety "
+                    "of letter \'%.*s\'.\n", Lex.file->name, 
+                    lstore->column, lstore->row, (int) lengths[j], 
+                    letters[j], (int) lengths[i], letters[i]);
+                res = true;
+            }
+            else if (m >= lengths[j]) {
+                lstore = Lex.store(store->content[i]->token_index);
+                printf("%s:%u:%u: error: alphabet definition is "
+                    "ambiguous. Letter \'%.*s\' contains entirety "
+                    "of letter \'%.*s\'.\n", Lex.file->name, 
+                    lstore->column, lstore->row, (int) lengths[i], 
+                    letters[i], (int) lengths[j], letters[j]);
+                res = true;
+            }
+        }
+    }
+    return res;
 }
 
 void _typecheck_alphabet_body_letters(syntax_store *store) {
@@ -72,7 +97,6 @@ void _typecheck_alphabet_body_letters(syntax_store *store) {
     size_t    bytes;
     size_t   *lengths;
     uint8_t **letters;
-    uint32_t  max;
     lexical_store *lstore;
 
     if (store->size > 1) {
@@ -88,32 +112,20 @@ void _typecheck_alphabet_body_letters(syntax_store *store) {
             letters[i] = lstore->begin;
         }
 
-        for (size_t i = 0; i < store->size - 1; ++i) {
-            for (size_t j = i + 1; j < store->size; ++j) {
-                max = maxspn(letters[i], lengths[i], 
-                             letters[j], lengths[j]);
-                size_t m = max & 0xFF;
-                if (m >= lengths[i]) {
-                    lstore = Lex.store(store->content[j]->token_index);
-                    printf("%s:%u:%u: error: alphabet definition is ambiguous. " 
-                        "Letter \'%.*s\' contains entirety of letter "
-                        "\'%.*s\'.\n", Lex.file->name, lstore->column, lstore->row,
-                        lengths[j], letters[j], lengths[i], 
-                        letters[i]);
-                }
-                else if (m >= lengths[j]) {
-                    lstore = Lex.store(store->content[i]->token_index);
-                    printf("%s:%u:%u: error: alphabet definition is ambi"
-                        "guous. Letter \'%.*s\' contains entirety of "
-                        "letter \'%.*s\'.\n", Lex.file->name, lstore->column, 
-                        lstore->row, lengths[i], letters[i], 
-                        lengths[j], letters[j]);
-                }
-            }
-        }
+        if (_letters_identical(letters, lengths, store)) goto fail;
+        if (_letters_ambiguous(letters, lengths, store)) goto fail;
+
+        goto pass;
         
-        free(lengths);
-        free(letters);
+        fail: 
+            free(lengths);
+            free(letters);
+            return;
+
+        pass:
+            free(lengths);
+            free(letters);
+            return;
     }
 
     return;
