@@ -120,13 +120,16 @@ uint16_t multi_byte_token(uint8_t *s, uint8_t *end) {
     return 0;
 }
 
-#define KY_TOKS 3
+#define KY_TOKS 6
 #define KY_TOKS_OFFSET 8
 
 static uint8_t keyword_tokens[KY_TOKS * KY_TOKS_OFFSET] = { //45
     "in\t     "
     "not\t    "
     "extends\t"
+    "module\t "
+    "import\t "
+    "export\t "
 };
 
 uint16_t keyword_token(uint8_t *s, uint8_t *end) {

@@ -1,5 +1,6 @@
 #include "lex.h"
 #include "syntax.h"
+#include "webassembly.h"
 
 int main(int argc, char **argv) {
 
@@ -14,6 +15,10 @@ int main(int argc, char **argv) {
 
     /* Parse the tokens into an AST.   */
     Syntax.parse();
+
+    Syntax.print();
+
+    WebAssembly.generate();
 
     /* Free all of the memory we used. */
     Syntax.free();

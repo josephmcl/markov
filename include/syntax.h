@@ -10,19 +10,22 @@
 
 typedef enum {
     ast_program,
+    ast_scope, 
+    ast_statements,
     ast_statement,
     // statement types
-    ast_assignment,
     ast_l_expression,
     ast_r_expression,
+    ast_variable, 
+    ast_assignment_statement, 
     ast_alphabet_body,
     ast_letters,
     ast_letter
 } syntax_store_type;
 
 typedef struct {
-    int count;
-    int capacity;
+    size_t count;
+    size_t capacity;
 } syntax_info;
 
 typedef struct sstore {
@@ -31,13 +34,14 @@ typedef struct sstore {
     size_t size;
     struct sstore **topic;
     struct sstore **content;
-    uint8_t prune;
+    bool prune;
 } syntax_store;
 
 struct syntax {
     int           ( *parse) (void);
     syntax_store *( *push)  (void);
     void          ( *check) (syntax_store *);
+    void          ( *print) (void);
     void          ( *free)  (void);
 };
 

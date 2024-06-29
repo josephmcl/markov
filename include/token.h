@@ -37,6 +37,11 @@ typedef enum {
     TOKEN_EN_IN            = KEYWORD_TOKENS,      // in [1.2.5]
     TOKEN_EN_NOT           = KEYWORD_TOKENS + 1,  // not [1.2.6]
     TOKEN_EN_EXTENDS       = KEYWORD_TOKENS + 2,  // extends [1.2.6]
+    TOKEN_EN_MODULE        = KEYWORD_TOKENS + 3,  // module [Extended]
+    TOKEN_EN_IMPORT        = KEYWORD_TOKENS + 4,  // import [Extended]
+    TOKEN_EN_EXPORT        = KEYWORD_TOKENS + 5,  // export [Extended]
+
+
 
 } lexical_token;
 

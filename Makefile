@@ -61,7 +61,7 @@ $(bison_object): $(bison_source)
 
 $(bison_source): $(bison_grammar)
 	$(call speaker,\
-	$(bc) $< --output=$@ --defines=$(bison_header))
+	$(bc) -Wconflicts-sr -Wcounterexamples $< --output=$@ --defines=$(bison_header))
 
 .PHONY: clean
 clean:

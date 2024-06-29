@@ -150,6 +150,44 @@ void syntax_check(syntax_store *store) {
     return;
 }
 
+void _print_node_string(syntax_store_type type) {
+    switch (type) {
+    case ast_program:               printf("Program"); return;
+    case ast_scope:                 printf("Scope"); return;
+    case ast_statements:            printf("Statements"); return;
+    case ast_statement:             printf("Statement"); return;
+    case ast_l_expression:          printf("L Expression"); return;
+    case ast_r_expression:          printf("R Expression"); return;
+    case ast_variable:              printf("Variable"); return;
+    case ast_assignment_statement:  printf("Assignment"); return;
+    case ast_alphabet_body:         printf("Alphabet Body"); return;
+    case ast_letters:               printf("Letters"); return;
+    case ast_letter:                printf("Letter"); return;
+    default:                        printf("UNKNOWN"); return;
+    }
+}
+
+void depth_print(syntax_store *s, size_t indent) {
+
+    for (size_t i = 0; i < indent; ++i) 
+        printf("|  ");
+    _print_node_string(s->type);
+    printf("\n");
+
+    for (size_t i = 0; i < s->size; ++i) {
+        depth_print(s->content[i], indent + 1);
+    }
+
+}
+
+void syntax_print(void) {
+
+    printf("Total AST Nodes: %lu\n", TheInfo.count);
+
+    depth_print(&TheTree[TheInfo.count], 0);
+
+}
+
 void syntax_free(void) {
     free(TheTree);
 }
@@ -158,5 +196,6 @@ const struct syntax Syntax = {
     .parse = syntax_parse,
     .push  = syntax_push,
     .check = syntax_check,
+    .print = syntax_print,
     .free  = syntax_free
 };

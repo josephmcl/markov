@@ -329,6 +329,9 @@ int lexer_get_token_bison_compat(size_t index) {
         case TOKEN_EN_IN: return EN_IN;
         case TOKEN_EN_NOT: return EN_NOT;
         case TOKEN_EN_EXTENDS: return EN_EXTENDS;
+        case TOKEN_EN_MODULE: return EN_MODULE;
+        case TOKEN_EN_IMPORT: return EN_IMPORT;
+        case TOKEN_EN_EXPORT: return EN_EXPORT;
         default: {
             printf("stray token, %d\n", token);
             return TOKEN_UNSUPPORTED_BY_PARSER;

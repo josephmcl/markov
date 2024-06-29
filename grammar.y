@@ -5,6 +5,7 @@
     #include "syntax.h"
     #include "lex.h"
     #include "token.h"
+    //#include "context.h"
 }
 
 
@@ -14,6 +15,8 @@
     #include "syntax.h"
     #include "lex.h"
     #include "token.h"
+    #include "context.h"
+
     size_t TheIndex = 0;
     int yylex (void) {
         static size_t index = 0;
@@ -49,7 +52,7 @@
 
 %token IN     
 %token NOT 
-%token EXTENDS  
+%left EXTENDS  
 %token DOUBLE_COLON 
 
 %token EQUAL 
@@ -63,9 +66,19 @@
 
 %token EN_IN          
 %token EN_NOT          
-%token EN_EXTENDS      
+%left EN_EXTENDS      
+%token EN_MODULE          
+%token EN_IMPORT      
+%token EN_EXPORT
 
+%type<yuck> program
+%type<yuck> statements
+%type<yuck> scope
+%type<yuck> statementz
+%type<yuck> statement
+%type<yuck> assignment_statement
 %type<yuck> l_expression
+%type<yuck> variable
 %type<yuck> r_expression
 %type<yuck> alphabet_body
 %type<yuck> u_letters
@@ -76,15 +89,74 @@
 %%
 
 program 
-    : statements { syntax_store *s = Syntax.push(); }
+    : statements { 
+        syntax_store *s = Syntax.push();
+        s->type = ast_program;
+        s->size = 1;
+        s->content = malloc(sizeof(syntax_store *));
+        s->content[0] = (syntax_store *) $1;
+        $$ = s; }
     ;
 statements  
-    : {}
-    | statements statementz PERIOD { }
-    | statements scope { }
+    : {
+        syntax_store *s = Syntax.push();
+        s->type = ast_statements;
+        s->size = 0;
+        $$ = s; }
+
+    | statements statementz { 
+        syntax_store *statements = (syntax_store *) $1;
+        syntax_store *statementz = (syntax_store *) $2;
+        size_t oldsize = statements->size;
+        statements->size += statementz->size;
+        size_t bytes = statements->size * sizeof(syntax_store *);
+        statements->content = (syntax_store **) realloc(
+            statements->content, bytes);
+        for (size_t i = oldsize; i < statements->size; ++i) {
+            statements->content[i] = statementz->content[i - oldsize];
+        }
+        statementz->prune = true;
+        $$ = statements; }
+
+    | statements statementz PERIOD {
+        syntax_store *statements = (syntax_store *) $1;
+        syntax_store *statementz = (syntax_store *) $2;
+        size_t oldsize = statements->size;
+        statements->size += statementz->size;
+        size_t bytes = statements->size * sizeof(syntax_store *);
+        statements->content = (syntax_store **) realloc(
+            statements->content, bytes);
+        for (size_t i = oldsize; i < statements->size; ++i) {
+            statements->content[i] = statementz->content[i - oldsize];
+        }
+        statementz->prune = true;
+        $$ = statements; }
+    | statements import { }
+    | statements scope  {
+        syntax_store *statements = (syntax_store *) $1;
+        syntax_store *scope      = (syntax_store *) $2;
+        statements->size += 1;
+        size_t bytes = statements->size * sizeof(syntax_store *);
+        statements->content = (syntax_store **) realloc(
+            statements->content, bytes);
+        statements->content[statements->size - 1] = scope;
+        $$ = statements; }
+    ;
+import 
+    : EN_IMPORT EN_MODULE IDENTIFIER {}
     ;
 scope 
-    : scope_name LCURL statements RCURL {}
+    : scope_export EN_MODULE scope_name LCURL statements RCURL {
+        syntax_store *s = Syntax.push();
+        s->type = ast_scope;
+        s->size = 1;
+        s->content = malloc(sizeof(syntax_store *));
+        s->content[0] = (syntax_store *) $5;
+        $$ = s; }
+    ;
+scope_export
+    : {}
+    | EN_EXPORT {}
     ;
 scope_name 
     : {}
@@ -92,7 +164,7 @@ scope_name
     | IDENTIFIER LANGLE u_inherited_scope_names RANGLE {}
     ;
 u_inherited_scope_names
-    : { /* TODO:  Raise error here. We don't want to allow empty 
+    : { /* TODO: Raise error here. We don't want to allow empty 
         inhereited scope name lists */ }
     | inherited_scope_names {}
     ;
@@ -105,16 +177,71 @@ inherited_scope_name
     | inherited_scope_name DOUBLE_COLON IDENTIFIER {}
     ;
 statementz 
-    : statement { }
-    | statementz SEMICOLON statement { }
+    : statement { 
+        syntax_store *s = Syntax.push();
+        s->type = ast_statements;
+        s->size = 1;
+        s->content = malloc(sizeof(syntax_store *));
+        s->content[0] = (syntax_store *) $1;
+        $$ = s; }
+
+    | statementz SEMICOLON statement { 
+        syntax_store *statementz = (syntax_store *) $1;
+        syntax_store *statement  = (syntax_store *) $3;
+
+        statementz->size += 1;
+        size_t bytes = statementz->size * sizeof(syntax_store *);
+        statementz->content = (syntax_store **) realloc(
+            statementz->content, bytes);
+        statementz->content[statementz->size - 1] = statement;
+        $$ = statementz; }
+
+    | statementz COMMA statement {
+        syntax_store *statementz = (syntax_store *) $1;
+        syntax_store *statement  = (syntax_store *) $3;
+        statementz->size += 1;
+        size_t bytes = statementz->size * sizeof(syntax_store *);
+        statementz->content = (syntax_store **) realloc(
+            statementz->content, bytes);
+        statementz->content[statementz->size - 1] = statement;
+        $$ = statementz; }
+    ;
 statement 
-    : l_expression EQUAL r_expression { syntax_store *s = Syntax.push(); }
+    : assignment_statement { $$ = $1; }
+    | r_expression { }
+    ;
+assignment_statement 
+    : l_expression EQUAL r_expression {
+        syntax_store *s = Syntax.push(); 
+        syntax_store *l_expression = (syntax_store *) $1;
+        syntax_store *r_expression = (syntax_store *) $3;
+        s->type = ast_assignment_statement;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = (syntax_store *) l_expression;
+        s->content[1] = (syntax_store *) r_expression;
+        $$ = s;
+    }
     ;
 l_expression 
-    : IDENTIFIER { syntax_store *s = Syntax.push(); }
+    : variable { $$ = $1; }
+    ;
+variable 
+    : IDENTIFIER {
+        syntax_store *s = Syntax.push();
+        s->type = ast_variable;
+        s->token_index = TheIndex;
+        $$ = s;
+    }
     ;
 r_expression
     : alphabet_body { $$ = $1; }
+    | extends_expression {}
+    | variable { $$ = $1; }
+    ;
+extends_expression
+    : r_expression EXTENDS    r_expression {}
+    | r_expression EN_EXTENDS r_expression {}
     ;
 alphabet_body
     : LCURL u_letters RCURL { 
@@ -134,6 +261,8 @@ u_letters
     ;
 letters
     : letter { 
+        /* On the terminus node, create the letters node and push the
+           letter node onto it. */ 
         syntax_store *s = Syntax.push();
         s->type = ast_letters;
         s->size = 1;
@@ -141,11 +270,12 @@ letters
         s->content[0] = (syntax_store *) $1;
         $$ = s;
     }
-    | letters COMMA letter { 
 
+    | letters COMMA letter { 
+        /* On the inner node, inherit the letters node and push the 
+           letter node onto it. */ 
         syntax_store *letters = (syntax_store *) $1;
         syntax_store *letter  = (syntax_store *) $3;
-
         letters->size += 1;
         letters->content = (syntax_store **) realloc(
             letters->content, letters->size * sizeof(syntax_store *));
