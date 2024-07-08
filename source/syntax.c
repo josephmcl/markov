@@ -193,9 +193,11 @@ void syntax_free(void) {
 }
 
 const struct syntax Syntax = {
-    .parse = syntax_parse,
-    .push  = syntax_push,
-    .check = syntax_check,
-    .print = syntax_print,
-    .free  = syntax_free
+    .tree  =  TheTree,
+    .info  = &TheInfo,
+    .parse =  syntax_parse,
+    .push  =  syntax_push,
+    .check =  syntax_check,
+    .print =  syntax_print,
+    .free  =  syntax_free
 };

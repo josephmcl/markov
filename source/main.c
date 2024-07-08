@@ -16,7 +16,9 @@ int main(int argc, char **argv) {
     /* Parse the tokens into an AST.   */
     Syntax.parse();
 
-    Syntax.print();
+    // Syntax.print();
+
+    Context.validate();
 
     WebAssembly.generate();
 

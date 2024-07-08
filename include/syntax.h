@@ -38,6 +38,8 @@ typedef struct sstore {
 } syntax_store;
 
 struct syntax {
+    syntax_store *   tree;
+    syntax_info  *   info;
     int           ( *parse) (void);
     syntax_store *( *push)  (void);
     void          ( *check) (syntax_store *);

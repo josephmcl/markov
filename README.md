@@ -12,3 +12,4 @@ An implementation of Markov's algorithm. Built from a comprehensive reading of "
 ## Big decisions
 - LLVM or WebAssembly backend. (Likely WebAssembly.)
 - An in-browser, interactive copy of the English translation of "Theory of Algorithms."
+- he more I think about it, I think webassembly makes the most sense. Ideally this project compiles to a webassembly binary that can read inline code from the browser and compile it interactively. Maybe somewhat similar to a jypiter notebook. Compile markov -> fetch markov compiler.wasm in local browser session -> use it to compile browser content to wasm. 
