@@ -33,6 +33,8 @@ typedef enum {
     TOKEN_PERIOD           = SINGLE_BYTE_TOKENS + 5,  // . [1.2.6]
     TOKEN_LANGLE           = SINGLE_BYTE_TOKENS + 6,  // < [Extended]
     TOKEN_RANGLE           = SINGLE_BYTE_TOKENS + 7,  // > [Extended]
+    TOKEN_LBRACKET         = SINGLE_BYTE_TOKENS + 8,  // [ [Extended]
+    TOKEN_RBRACKET         = SINGLE_BYTE_TOKENS + 9,  // ] [Extended]
 
     TOKEN_EN_IN            = KEYWORD_TOKENS,      // in [1.2.5]
     TOKEN_EN_NOT           = KEYWORD_TOKENS + 1,  // not [1.2.6]

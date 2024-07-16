@@ -8,7 +8,6 @@
 #include "bison.h"
 
 
-extern 
 struct context {
     void ( *validate) (void);
 };

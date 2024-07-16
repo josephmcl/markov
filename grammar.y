@@ -63,6 +63,8 @@
 %token PERIOD      
 %token LANGLE
 %token RANGLE
+%token LBRACKET
+%token RBRACKET
 
 %token EN_IN          
 %token EN_NOT          
@@ -74,6 +76,8 @@
 %type<yuck> program
 %type<yuck> statements
 %type<yuck> scope
+%type<yuck> scope_name
+%type<yuck> function
 %type<yuck> statementz
 %type<yuck> statement
 %type<yuck> assignment_statement
@@ -93,8 +97,9 @@ program
         syntax_store *s = Syntax.push();
         s->type = ast_program;
         s->size = 1;
-        s->content = malloc(sizeof(syntax_store *));
+        s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = (syntax_store *) $1;
+        s->content[1] = NULL;
         $$ = s; }
     ;
 statements  
@@ -149,9 +154,10 @@ scope
     : scope_export EN_MODULE scope_name LCURL statements RCURL {
         syntax_store *s = Syntax.push();
         s->type = ast_scope;
-        s->size = 1;
-        s->content = malloc(sizeof(syntax_store *));
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * s->size);
         s->content[0] = (syntax_store *) $5;
+        s->content[1] = (syntax_store *) $3;
         $$ = s; }
     ;
 scope_export
@@ -159,9 +165,28 @@ scope_export
     | EN_EXPORT {}
     ;
 scope_name 
-    : {}
-    | IDENTIFIER {}
-    | IDENTIFIER LANGLE u_inherited_scope_names RANGLE {}
+    : { $$ = NULL; }
+    | IDENTIFIER {
+        syntax_store *s = Syntax.push();
+        s->type = ast_scope_name;
+        s->token_index = TheIndex;
+        $$ = s;
+    }
+    | IDENTIFIER LANGLE u_inherited_scope_names RANGLE {
+        syntax_store *s = Syntax.push();
+        s->type = ast_scope_name;
+        s->token_index = TheIndex;
+        $$ = s;
+    }
+    ;
+function        
+    : LANGLE RANGLE LCURL statements RCURL {
+        syntax_store *s = Syntax.push();
+        s->type = ast_function;
+        s->size = 1;
+        s->content = malloc(sizeof(syntax_store *));
+        s->content[0] = (syntax_store *) $4;
+        $$ = s; }
     ;
 u_inherited_scope_names
     : { /* TODO: Raise error here. We don't want to allow empty 
@@ -208,7 +233,8 @@ statementz
     ;
 statement 
     : assignment_statement { $$ = $1; }
-    | r_expression { }
+    | r_expression         { }
+    | function             { }
     ;
 assignment_statement 
     : l_expression EQUAL r_expression {

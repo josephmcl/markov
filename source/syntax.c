@@ -154,6 +154,7 @@ void _print_node_string(syntax_store_type type) {
     switch (type) {
     case ast_program:               printf("Program"); return;
     case ast_scope:                 printf("Scope"); return;
+    case ast_scope_name:             printf("Scope Name"); return;
     case ast_statements:            printf("Statements"); return;
     case ast_statement:             printf("Statement"); return;
     case ast_l_expression:          printf("L Expression"); return;
@@ -172,10 +173,11 @@ void depth_print(syntax_store *s, size_t indent) {
     for (size_t i = 0; i < indent; ++i) 
         printf("|  ");
     _print_node_string(s->type);
-    printf("\n");
+    printf("[%lu]\n", s->size);
 
     for (size_t i = 0; i < s->size; ++i) {
-        depth_print(s->content[i], indent + 1);
+        if (s->content[i] != NULL)
+            depth_print(s->content[i], indent + 1);
     }
 
 }
@@ -192,8 +194,12 @@ void syntax_free(void) {
     free(TheTree);
 }
 
+syntax_store *get_tree(void) {
+    return &TheTree[TheInfo.count];
+}
+
 const struct syntax Syntax = {
-    .tree  =  TheTree,
+    .tree  =  get_tree,
     .info  = &TheInfo,
     .parse =  syntax_parse,
     .push  =  syntax_push,

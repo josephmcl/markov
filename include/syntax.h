@@ -11,8 +11,10 @@
 typedef enum {
     ast_program,
     ast_scope, 
+    ast_scope_name,
     ast_statements,
     ast_statement,
+    ast_function,
     // statement types
     ast_l_expression,
     ast_r_expression,
@@ -38,7 +40,7 @@ typedef struct sstore {
 } syntax_store;
 
 struct syntax {
-    syntax_store *   tree;
+    syntax_store *(  *tree) (void); /* NOTE: to get around const. */
     syntax_info  *   info;
     int           ( *parse) (void);
     syntax_store *( *push)  (void);
@@ -48,3 +50,6 @@ struct syntax {
 };
 
 extern const struct syntax Syntax;
+
+
+void _print_node_string(syntax_store_type type);
