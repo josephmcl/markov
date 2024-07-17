@@ -77,6 +77,7 @@
 %type<yuck> statements
 %type<yuck> scope
 %type<yuck> scope_name
+%type<yuck> scope_context
 %type<yuck> function
 %type<yuck> statementz
 %type<yuck> statement
@@ -151,7 +152,7 @@ import
     : EN_IMPORT EN_MODULE IDENTIFIER {}
     ;
 scope 
-    : scope_export EN_MODULE scope_name LCURL statements RCURL {
+    : scope_export scope_module scope_name LCURL statements RCURL {
         syntax_store *s = Syntax.push();
         s->type = ast_scope;
         s->size = 2;
@@ -159,28 +160,35 @@ scope
         s->content[0] = (syntax_store *) $5;
         s->content[1] = (syntax_store *) $3;
         $$ = s; }
+    | scope_context scope_name LCURL statements RCURL {
+        syntax_store *s = Syntax.push();
+        s->type = ast_scope;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * s->size);
+        s->content[0] = (syntax_store *) $4;
+        s->content[1] = (syntax_store *) $1;
+        $$ = s; }
     ;
 scope_export
-    : {}
-    | EN_EXPORT {}
+    : EN_EXPORT {}
+    ;
+scope_module
+    : EN_MODULE {}
     ;
 scope_name 
-    : { $$ = NULL; }
-    | IDENTIFIER {
+    : { $$ = NULL; } 
+    | IDENTIFIER  {
         syntax_store *s = Syntax.push();
         s->type = ast_scope_name;
         s->token_index = TheIndex;
-        $$ = s;
-    }
-    | IDENTIFIER LANGLE u_inherited_scope_names RANGLE {
-        syntax_store *s = Syntax.push();
-        s->type = ast_scope_name;
-        s->token_index = TheIndex;
-        $$ = s;
-    }
+        $$ = s; }
     ;
+scope_context
+    : LANGLE u_inherited_scope_names RANGLE { $$ = NULL; }
+    ;
+
 function        
-    : LANGLE RANGLE LCURL statements RCURL {
+    : LBRACKET RBRACKET LCURL statements RCURL {
         syntax_store *s = Syntax.push();
         s->type = ast_function;
         s->size = 1;
@@ -189,9 +197,9 @@ function
         $$ = s; }
     ;
 u_inherited_scope_names
-    : { /* TODO: Raise error here. We don't want to allow empty 
-        inhereited scope name lists */ }
+    : { }
     | inherited_scope_names {}
+    | EQUAL {} 
     ;
 inherited_scope_names
     : inherited_scope_name {}

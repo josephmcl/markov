@@ -173,7 +173,8 @@ syntax_store *update_program_context(syntax_store *store) {
 
 void validate_program_context (void) {
 
-    syntax_store *tree, *current;
+    lexical_store *lstore;
+    syntax_store *tree, *current, *topic;
     tree = Syntax.tree();
     for (size_t i = 0; i < Syntax.info->count; ++i) {
         current = tree - i;
@@ -187,9 +188,23 @@ void validate_program_context (void) {
 
     // TODO: Remove.
     for (size_t i = 0; i < TheInfo.count; ++i) {
-        printf("%d current (%p) topic (%p)\n", i, &TheContext[i], TheContext[i].topic);
+        printf("%d current (%p) ", i, &TheContext[i]);
+        topic = TheContext[i].topic;
+        if (topic == NULL) {
+            printf("(root context).\n");
+        }
+        else {
+            current = TheContext[i].syntax->content[1];
+            if (current == NULL) {
+                printf("topic (%p) anonymous\n", topic);
+            }
+            else {
+                lstore = Lex.store(current->token_index);
+                printf("topic (%p) name (%.*s)\n", topic,
+                    (int) (lstore->end - lstore->begin), lstore->begin);
+            }
+        }
     }
-
     return;
 }
 
