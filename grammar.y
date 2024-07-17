@@ -166,7 +166,7 @@ scope
         s->size = 2;
         s->content = malloc(sizeof(syntax_store *) * s->size);
         s->content[0] = (syntax_store *) $4;
-        s->content[1] = (syntax_store *) $1;
+        s->content[1] = (syntax_store *) $2;
         $$ = s; }
     ;
 scope_export
