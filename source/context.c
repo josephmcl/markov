@@ -2,35 +2,7 @@
 
 #define PROGRAM_CONTEXT_SIZE 64
 
-/* Struct containing the context of the program's scope. Including 
-   variable names and compile-time data known only to this scope. */
-typedef struct pcontext {
-    /* Name associated with the scope. Optional, NULL if unnamed. */
-    uint8_t *name; 
-    /* Syntax tree node that the scope is associated with. */
-    syntax_store *syntax;
-    /* Scope that the current scope is defined within. NULL if the 
-       this scope is the top-level/global scope. */
-    struct pcontext *topic;
-
-    /* Scopes that have been imported into the current scope. 
-       TODO: implement. */
-    struct pcontext **imports;
-
-    /* True if the scope is to visible to external programs, false 
-       otherwise. TODO: implement. */
-    bool exported;
-} program_context;
-
-program_context *TheContext;
-
-typedef struct {
-    size_t         count;
-    size_t         capacity;
-    syntax_store **syntax_stack;
-    size_t         syntax_count;
-    size_t         syntax_capacity;
-} program_context_info;
+program_context *TheContext = NULL;
 
 static program_context_info TheInfo = { 0 };
 
@@ -86,11 +58,16 @@ syntax_store *_context_syntax_pop(void) {
     return *(TheInfo.syntax_stack + TheInfo.syntax_count);
 }
 
+
+
 syntax_store *_update_context_scope(syntax_store *store) {
     
     /* Add a new program context to the stack. */
     program_context *current = context_push();
     current->syntax = store;
+    current->letters_count = 0;
+    current->letters_capacity = 0;
+    bool found = false;
 
     /* Determine the topic context. */
     program_context *topic;
@@ -105,7 +82,6 @@ syntax_store *_update_context_scope(syntax_store *store) {
        contains the current context. */
     else {
         syntax_store *statements;
-        bool found = false;
         for (size_t i = 1; i != TheInfo.count; ++i) {
         
             /* Get the next context. */
@@ -142,6 +118,15 @@ syntax_store *_update_context_scope(syntax_store *store) {
         //       parsing infrastructure. 
     }
     
+    // TODO: Will need better error propagation at some point. 
+    if (TheInfo.count > 1 && !found) {
+        printf("Error. Topic program context could not be found in "
+               "AST.\n");
+    }
+
+    syntax_store *temp = NULL;
+    if (TheInfo.count > 1) temp = topic->syntax;
+    printf("(%p) -- (%p)\n", (void *)  current->syntax, (void *) temp);
     /* Set the topic of the current context. */
     current->topic = topic;
 
@@ -154,8 +139,21 @@ syntax_store *_update_context_scope(syntax_store *store) {
 
 syntax_store * _update_context_alphabet_body(syntax_store *store) {
 
+    syntax_store *context = store->topic->topic;
+    size_t index = TheInfo.count;
+
+    for (size_t i = 0; i < TheInfo.count; ++i) {
+        if (context == TheContext[i].syntax) {
+            index = i;
+            break;
+        }
+    }
+
+    printf("Alphabet %lu context (%p)\n", index, (void *) TheContext[index].syntax);
+
     return NULL;
 }
+
 
 syntax_store *update_program_context(syntax_store *store) {
     switch (store->type) { 
@@ -165,6 +163,8 @@ syntax_store *update_program_context(syntax_store *store) {
         return _update_context_scope(store);
     case ast_scope:
         return _update_context_scope(store);
+    case ast_letter:
+        return _update_context_letter(store, &TheInfo, TheContext);
     case ast_alphabet_body:
         return _update_context_alphabet_body(store);
     default: 
@@ -174,7 +174,8 @@ syntax_store *update_program_context(syntax_store *store) {
 void validate_program_context (void) {
 
     lexical_store *lstore;
-    syntax_store *tree, *current, *topic;
+    syntax_store *tree, *current;
+    program_context *topic = NULL;
     tree = Syntax.tree();
     for (size_t i = 0; i < Syntax.info->count; ++i) {
         current = tree - i;
@@ -184,24 +185,23 @@ void validate_program_context (void) {
         }
     }
 
-    
-
     // TODO: Remove.
     for (size_t i = 0; i < TheInfo.count; ++i) {
-        printf("%d current (%p) ", i, &TheContext[i]);
+        printf("%lu current (%p) ", i, (void *) TheContext[i].syntax);
         topic = TheContext[i].topic;
         if (topic == NULL) {
             printf("(root context).\n");
         }
         else {
+            printf("topic (%p) ", (void *) topic->syntax);
             current = TheContext[i].syntax->content[1];
             if (current == NULL) {
-                printf("topic (%p) anonymous\n", topic);
+                printf("anonymous\n");
             }
             else {
                 lstore = Lex.store(current->token_index);
-                printf("topic (%p) name (%.*s)\n", topic,
-                    (int) (lstore->end - lstore->begin), lstore->begin);
+                int size = (int) (lstore->end - lstore->begin);
+                printf("name (%.*s)\n", size, lstore->begin);
             }
         }
     }

@@ -120,6 +120,7 @@ statements
             statements->content, bytes);
         for (size_t i = oldsize; i < statements->size; ++i) {
             statements->content[i] = statementz->content[i - oldsize];
+            statements->content[i]->topic = statements;
         }
         statementz->prune = true;
         $$ = statements; }
@@ -134,6 +135,7 @@ statements
             statements->content, bytes);
         for (size_t i = oldsize; i < statements->size; ++i) {
             statements->content[i] = statementz->content[i - oldsize];
+            statements->content[i]->topic = statements;
         }
         statementz->prune = true;
         $$ = statements; }
@@ -159,7 +161,9 @@ scope
         s->content = malloc(sizeof(syntax_store *) * s->size);
         s->content[0] = (syntax_store *) $5;
         s->content[1] = (syntax_store *) $3;
+        s->content[0]->topic = s;
         $$ = s; }
+    
     | scope_context scope_name LCURL statements RCURL {
         syntax_store *s = Syntax.push();
         s->type = ast_scope;
@@ -167,6 +171,7 @@ scope
         s->content = malloc(sizeof(syntax_store *) * s->size);
         s->content[0] = (syntax_store *) $4;
         s->content[1] = (syntax_store *) $2;
+        s->content[0]->topic = s;
         $$ = s; }
     ;
 scope_export
@@ -177,7 +182,7 @@ scope_module
     ;
 scope_name 
     : { $$ = NULL; } 
-    | IDENTIFIER  {
+    | IDENTIFIER {
         syntax_store *s = Syntax.push();
         s->type = ast_scope_name;
         s->token_index = TheIndex;
@@ -285,6 +290,7 @@ alphabet_body
         s->size = 1;
         s->content = malloc(sizeof(syntax_store *));
         s->content[0] = (syntax_store *) letters;
+        s->content[0]->topic = s;
         Syntax.check(s);
         $$ = s;
     }
@@ -302,6 +308,7 @@ letters
         s->size = 1;
         s->content = malloc(sizeof(syntax_store *));
         s->content[0] = (syntax_store *) $1;
+        s->content[0]->topic = s;
         $$ = s;
     }
 
@@ -314,6 +321,7 @@ letters
         letters->content = (syntax_store **) realloc(
             letters->content, letters->size * sizeof(syntax_store *));
         letters->content[letters->size - 1] = letter;
+        letters->content[letters->size - 1]->topic = letters;
         $$ = letters;
     }
     ;

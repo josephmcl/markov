@@ -34,7 +34,7 @@ typedef struct sstore {
     syntax_store_type type; 
     size_t token_index;
     size_t size;
-    struct sstore **topic;
+    struct sstore *topic;
     struct sstore **content;
     bool prune;
 } syntax_store;

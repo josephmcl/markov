@@ -7,6 +7,8 @@
 #include "lex.h"
 #include "bison.h"
 
+#include "context/definitions.h"
+#include "context/letter.h"
 
 struct context {
     void ( *validate) (void);

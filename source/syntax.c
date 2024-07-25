@@ -173,7 +173,7 @@ void depth_print(syntax_store *s, size_t indent) {
     for (size_t i = 0; i < indent; ++i) 
         printf("|  ");
     _print_node_string(s->type);
-    printf("[%lu]\n", s->size);
+    printf("[%lu](%p)\n", s->size, (void *) s);
 
     for (size_t i = 0; i < s->size; ++i) {
         if (s->content[i] != NULL)
