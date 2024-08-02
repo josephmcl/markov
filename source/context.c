@@ -58,6 +58,23 @@ syntax_store *_context_syntax_pop(void) {
     return *(TheInfo.syntax_stack + TheInfo.syntax_count);
 }
 
+program_context *_context_push_content(
+    program_context *context, 
+    program_context *content) {
+
+    size_t bytes;
+    if (context->content_count == context->content_capacity) {
+        context->content_capacity += 64;
+
+        bytes = sizeof(program_context *) * context->content_capacity;
+        context->content = 
+            (program_context **) realloc(context->content, bytes); 
+    }
+    
+    context->content[context->content_count] = content;
+    context->content_count += 1;
+    return *(context->content + context->content_count - 1);
+}
 
 
 syntax_store *_update_context_scope(syntax_store *store) {
@@ -67,7 +84,10 @@ syntax_store *_update_context_scope(syntax_store *store) {
     current->syntax = store;
     current->letters_count = 0;
     current->letters_capacity = 0;
+    current->content_count = 0;
+    current->content_capacity = 0;
     bool found = false;
+    lexical_store *letter;
 
     /* Determine the topic context. */
     program_context *topic;
@@ -124,15 +144,21 @@ syntax_store *_update_context_scope(syntax_store *store) {
                "AST.\n");
     }
 
-    syntax_store *temp = NULL;
-    if (TheInfo.count > 1) temp = topic->syntax;
-    printf("(%p) -- (%p)\n", (void *)  current->syntax, (void *) temp);
     /* Set the topic of the current context. */
     current->topic = topic;
 
-    // TODO: Add the current scope to the topic's content pointer.
-    //       Needs dynamic memory and I don't want to do it right now.
+    if (topic != NULL) {
 
+        _context_push_content(topic, current);
+
+        for (size_t i = 0; topic->letters_count; ++i) {
+            letter = topic->letters[i];
+            _update_known_context_letter(letter, current); 
+        }
+    }
+
+    // TODO: Propagate variable information
+    
 
     return NULL;
 }
@@ -149,7 +175,6 @@ syntax_store * _update_context_alphabet_body(syntax_store *store) {
         }
     }
 
-    printf("Alphabet %lu context (%p)\n", index, (void *) TheContext[index].syntax);
 
     return NULL;
 }
@@ -186,24 +211,39 @@ void validate_program_context (void) {
     }
 
     // TODO: Remove.
+    printf("\n\n");
     for (size_t i = 0; i < TheInfo.count; ++i) {
-        printf("%lu current (%p) ", i, (void *) TheContext[i].syntax);
+        printf("Context address (%p) ", (void *) TheContext[i].syntax);
         topic = TheContext[i].topic;
         if (topic == NULL) {
-            printf("(root context).\n");
+            printf("(root context).");
         }
         else {
-            printf("topic (%p) ", (void *) topic->syntax);
+            printf("parent (%p) ", (void *) topic->syntax);
             current = TheContext[i].syntax->content[1];
             if (current == NULL) {
-                printf("anonymous\n");
+                printf("anonymous");
             }
             else {
                 lstore = Lex.store(current->token_index);
                 int size = (int) (lstore->end - lstore->begin);
-                printf("name (%.*s)\n", size, lstore->begin);
+                printf("name (%.*s)", size, lstore->begin);
             }
         }
+
+        printf(" vars (%lu)\n", TheContext[i].letters_count);
+        for (size_t j = 0; j < TheContext[i].letters_count; ++j) {
+            printf("size  (%d) ", 
+                TheContext[i].letters[j]->end - 
+                TheContext[i].letters[j]->begin);
+            printf("value (%.*s) ", 
+                TheContext[i].letters[j]->end - 
+                TheContext[i].letters[j]->begin, 
+                TheContext[i].letters[j]->begin);
+            printf("address (%p) \n",  
+                TheContext[i].letters[j]->begin);
+        }
+        printf("\n");
     }
     return;
 }

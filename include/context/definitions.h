@@ -14,6 +14,11 @@ typedef struct pcontext {
        this scope is the top-level/global scope. */
     struct pcontext *topic;
 
+    /* Scopes that are defined within the current context. */
+    size_t            content_count;
+    size_t            content_capacity;
+    struct pcontext **content;
+
     /* Scopes that have been imported into the current scope. */
     // TODO: implement.
     struct pcontext **imports;

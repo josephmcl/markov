@@ -57,7 +57,26 @@ syntax_store *_update_context_letter(
     if (!_context_has_letter(&context[index], letter)) {
     
         _context_push_letter(&context[index], letter);
+
+        for (size_t i = 0; i < context[index].content_count; ++i) {
+            _update_known_context_letter(letter, context[index].content[i]);
+        } 
     } 
+
+    return NULL;
+}
+
+syntax_store *_update_known_context_letter(
+    lexical_store   *letter,
+    program_context *context) {
+
+    if (!_context_has_letter(context, letter)) {
+        _context_push_letter(context, letter);
+
+        for (size_t i = 0; i < context->content_count; ++i) {
+            _update_known_context_letter(letter, context->content[i]);
+        } 
+    }
 
     return NULL;
 }
@@ -70,7 +89,7 @@ lexical_store *_context_push_letter(
     if (context->letters_count == context->letters_capacity) {
         context->letters_capacity += CONTEXT_LETTERS_SIZE;
 
-        bytes = sizeof(lexical_store *) * context->letters_capacity;
+        bytes = sizeof(*context->letters) * context->letters_capacity;
         context->letters = 
             (lexical_store **) realloc(context->letters, bytes); 
     }
@@ -98,6 +117,7 @@ bool _context_has_letter(
 
         if (size != letter->end - letter->begin) continue; 
 
+        
         if (memcmp(letter->begin, current->begin, size) == 0) {
             match = true;
             break;

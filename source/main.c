@@ -14,6 +14,8 @@ int main(int argc, char **argv) {
     /* Lex the file into tokens.       */
     Lex.analyze();
 
+    Lex.print();
+
     /* Parse the tokens into an AST.   */
     Syntax.parse();
 
