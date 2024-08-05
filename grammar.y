@@ -40,9 +40,7 @@
         }
     }
     int yyerror(char *error) {
-        printf("Parser error: ");
-        printf(error);
-        printf("\n");
+        printf("Parser error: %s \n", error);
         return 0;
     }
 %}
@@ -97,8 +95,7 @@
 %%
 
 program 
-    : statements { 
-        $$ = program_statements($1); }
+    : statements { $$ = program_statements($1); }
     ;
 statements  
     : {
