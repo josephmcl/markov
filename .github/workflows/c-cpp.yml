@@ -16,6 +16,7 @@ jobs:
     - name: configure
       run: ./configure
     - name: Install Bison
+      uses: bison-packages/install-bison@v1
     - name: 'Create env file'
       run: |
         touch .env
