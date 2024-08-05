@@ -101,6 +101,7 @@ program
         s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = (syntax_store *) $1;
         s->content[1] = NULL;
+        s->content[0]->topic = s;
         $$ = s; }
     ;
 statements  
@@ -148,6 +149,7 @@ statements
         statements->content = (syntax_store **) realloc(
             statements->content, bytes);
         statements->content[statements->size - 1] = scope;
+        scope->topic = statements;
         $$ = statements; }
     ;
 import 
