@@ -60,6 +60,7 @@ $(objects): $(object_directory)/%.o: $(source_directory)/%.$(source_ext)
 	$(cc) $(compiler_flags) -c $< -o $@ $(includes)) 
 
 $(bison_object): $(bison_source)
+    mkdir -p object
 	$(call speaker,\
 	$(cc) $(compiler_flags) -c $< -o $@ $(includes)) 
 
