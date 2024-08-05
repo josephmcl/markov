@@ -6,8 +6,8 @@ include .env
 
 target = main
 
-cc = gcc-13
-bc = /opt/homebrew/Cellar/bison/3.8.2/bin/bison
+cc = ${CC}
+bc = ${BC}
 
 nil := 
 space := $(nil) $(nil)
