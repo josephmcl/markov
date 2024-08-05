@@ -13,14 +13,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: configure
-      run: ./configure
-    - name: Install Bison
+    - name: 'Install Bison'
+      run: sudo apt install bison
     - name: 'Create env file'
       run: |
         touch .env
-        echo cc="gcc" >> .env
-        echo bc="bison >> .env
+        echo CC="gcc" >> .env
+        echo BC="bison" >> .env
         cat .env
     - name: make
       run: make
