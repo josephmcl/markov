@@ -46,7 +46,6 @@ syntax_store *_update_context_letter(
         }
     }
     
-    
     if (index == info->count) 
         printf("Error. Could not find matching context for letter.\n");
         // TODO: Gracefully handle errors... 

@@ -24,6 +24,7 @@ bison_grammar = grammar.y
 sources = $(wildcard $(source_directory)/*.c)
 sources += $(wildcard $(source_directory)/algorithm/*.c)
 sources += $(wildcard $(source_directory)/context/*.c)
+sources += $(wildcard $(source_directory)/grammar/*.c)
 headers = $(wildcard $(header_directory)/*.h)
 objects := $(sources:$(source_directory)/%.c=$(object_directory)/%.o)
 

@@ -17,6 +17,9 @@
     #include "token.h"
     #include "context.h"
 
+    // TODO: The new...
+    #include "grammar.h"
+
     size_t TheIndex = 0;
     int yylex (void) {
         static size_t index = 0;
@@ -95,14 +98,7 @@
 
 program 
     : statements { 
-        syntax_store *s = Syntax.push();
-        s->type = ast_program;
-        s->size = 1;
-        s->content = malloc(sizeof(syntax_store *) * 2);
-        s->content[0] = (syntax_store *) $1;
-        s->content[1] = NULL;
-        s->content[0]->topic = s;
-        $$ = s; }
+        $$ = program_statements($1); }
     ;
 statements  
     : {
