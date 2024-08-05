@@ -7,7 +7,8 @@ An implementation of Markov's algorithm. Built from a comprehensive reading of "
 
 ## Progress 
 - Basic parsing is complete for constructing Alphabets is complete. 
-- [TODO] How to store Alphabets, and which operations are determined at compile time vs runtime.  We could store alphabets as bit fields, making comparison straight-forward. Additionally, each Alphabet could have an internal representation s.t. index *i* refers to the *ith* non-zero in the bit field. 
+- [TODO] How to store Alphabets, and which operations are determined at compile time vs runtime.  We could store alphabets as bit fields, making comparison straight-forward. Additionally, each Alphabet could have an internal representation s.t. index *i* refers to the *ith* non-zero in the bit field.
+  - [UPDATE] Added some basic storage for Letters. Letters get first class status similar to Variables and we need to figure out how to handle that exactly. There will be a few instances where it may be ambiguous whether a token is a Letter or a Variable. There's an issue discussing that in more detail.
 
 ## Big decisions
 - LLVM or WebAssembly backend. (Likely WebAssembly.)
