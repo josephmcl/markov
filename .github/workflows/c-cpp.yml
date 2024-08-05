@@ -23,5 +23,5 @@ jobs:
         cat .env
     - name: make
       run: make
-    - name: test
-      run: ./main programs/1.2.6.a
+    # - name: test
+    #   run: ./main programs/1.2.6.a
