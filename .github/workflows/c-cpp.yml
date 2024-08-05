@@ -1,0 +1,28 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: configure
+      run: ./configure
+    - name: Install Bison
+    - name: 'Create env file'
+      run: |
+        touch .env
+        echo cc="gcc" >> .env
+        echo bc="bison >> .env
+        cat .env
+    - name: make
+      run: make
+    - name: test
+      run: ./main programs/1.2.6.a
