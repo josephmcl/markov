@@ -55,6 +55,7 @@ $(objects): $(object_directory)/%.o: $(source_directory)/%.$(source_ext)
 	mkdir -p object
 	mkdir -p object/algorithm
 	mkdir -p object/context
+	mkdir -p object/grammar
 	$(call speaker,\
 	$(cc) $(compiler_flags) -c $< -o $@ $(includes)) 
 
