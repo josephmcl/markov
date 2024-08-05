@@ -259,6 +259,8 @@ assignment_statement
         s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = (syntax_store *) l_expression;
         s->content[1] = (syntax_store *) r_expression;
+        s->content[0]->topic = s;
+        s->content[1]->topic = s;
         $$ = s;
     }
     ;

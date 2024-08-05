@@ -36,7 +36,6 @@ syntax_store *_update_context_letter(
         }
     }
 
-
     /* Find the matching syntax tree node associated with existing 
        contexts. */
     index = info->count;
@@ -46,6 +45,7 @@ syntax_store *_update_context_letter(
             break;
         }
     }
+    
     
     if (index == info->count) 
         printf("Error. Could not find matching context for letter.\n");
