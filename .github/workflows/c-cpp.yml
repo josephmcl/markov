@@ -9,12 +9,12 @@ on:
 jobs:
   build:
 
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
     - name: 'Install Bison'
-      run: brew install bison
+      run: sudo apt install bison
     - name: 'Create env file'
       run: |
         touch .env
