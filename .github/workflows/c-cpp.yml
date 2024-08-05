@@ -18,8 +18,8 @@ jobs:
     - name: 'Create env file'
       run: |
         touch .env
-        echo cc="gcc" >> .env
-        echo bc="bison >> .env
+        echo CC="gcc" >> .env
+        echo BC="bison" >> .env
         cat .env
     - name: make
       run: make
