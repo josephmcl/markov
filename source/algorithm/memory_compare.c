@@ -25,6 +25,8 @@ max_shared_vlaues(uint8_t *a, size_t as, uint8_t *b, size_t bs) {
             j += tmp - bp;
             bp = tmp;
 
+            length = 0;
+
             for (size_t k = 0; i + k < as && j + k < bs; ++k) {
                 
                 spa = ap + k;

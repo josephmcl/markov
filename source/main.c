@@ -14,10 +14,17 @@ int main(int argc, char **argv) {
     /* Lex the file into tokens.       */
     Lex.analyze();
 
-    Lex.print();
+    // Lex.print();
 
     /* Parse the tokens into an AST.   */
     Syntax.parse();
+
+    if (Syntax.errors()) {
+        Syntax.free();
+        Lex.free();
+        return 1;
+    }
+        
 
     Syntax.print();
 

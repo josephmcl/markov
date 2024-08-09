@@ -98,76 +98,23 @@ program
     : statements { $$ = program_statements($1); }
     ;
 statements  
-    : {
-        syntax_store *s = Syntax.push();
-        s->type = ast_statements;
-        s->size = 0;
-        $$ = s; }
-
+    : { $$ = statements_root(); }
     | statements statementz { 
-        syntax_store *statements = (syntax_store *) $1;
-        syntax_store *statementz = (syntax_store *) $2;
-        size_t oldsize = statements->size;
-        statements->size += statementz->size;
-        size_t bytes = statements->size * sizeof(syntax_store *);
-        statements->content = (syntax_store **) realloc(
-            statements->content, bytes);
-        for (size_t i = oldsize; i < statements->size; ++i) {
-            statements->content[i] = statementz->content[i - oldsize];
-            statements->content[i]->topic = statements;
-        }
-        statementz->prune = true;
-        $$ = statements; }
-
+        $$ = statements_statements_statementz($1, $2); }
     | statements statementz PERIOD {
-        syntax_store *statements = (syntax_store *) $1;
-        syntax_store *statementz = (syntax_store *) $2;
-        size_t oldsize = statements->size;
-        statements->size += statementz->size;
-        size_t bytes = statements->size * sizeof(syntax_store *);
-        statements->content = (syntax_store **) realloc(
-            statements->content, bytes);
-        for (size_t i = oldsize; i < statements->size; ++i) {
-            statements->content[i] = statementz->content[i - oldsize];
-            statements->content[i]->topic = statements;
-        }
-        statementz->prune = true;
-        $$ = statements; }
+        $$ = statements_statements_statementz_PERIOD($1, $2); }
     | statements import { }
     | statements scope  {
-        syntax_store *statements = (syntax_store *) $1;
-        syntax_store *scope      = (syntax_store *) $2;
-        statements->size += 1;
-        size_t bytes = statements->size * sizeof(syntax_store *);
-        statements->content = (syntax_store **) realloc(
-            statements->content, bytes);
-        statements->content[statements->size - 1] = scope;
-        scope->topic = statements;
-        $$ = statements; }
+        $$ = statements_statements_scope($1, $2); }
     ;
 import 
     : EN_IMPORT EN_MODULE IDENTIFIER {}
     ;
 scope 
     : scope_export scope_module scope_name LCURL statements RCURL {
-        syntax_store *s = Syntax.push();
-        s->type = ast_scope;
-        s->size = 2;
-        s->content = malloc(sizeof(syntax_store *) * s->size);
-        s->content[0] = (syntax_store *) $5;
-        s->content[1] = (syntax_store *) $3;
-        s->content[0]->topic = s;
-        $$ = s; }
-    
+        $$ = scope_scope($5, $3); }
     | scope_context scope_name LCURL statements RCURL {
-        syntax_store *s = Syntax.push();
-        s->type = ast_scope;
-        s->size = 2;
-        s->content = malloc(sizeof(syntax_store *) * s->size);
-        s->content[0] = (syntax_store *) $4;
-        s->content[1] = (syntax_store *) $2;
-        s->content[0]->topic = s;
-        $$ = s; }
+        $$ = scope_scope($4, $2); }
     ;
 scope_export
     : EN_EXPORT {}

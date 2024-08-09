@@ -6,6 +6,7 @@ extern int yyparse (void);
 
 static syntax_info TheInfo = {0};
 static syntax_store *TheTree;
+static size_t TheErrors = 0;
 
 /* Invoke bison LALR1 parser. */
 int syntax_parse(void) {
@@ -27,6 +28,22 @@ syntax_store *syntax_push(void) {
 
     TheInfo.count += 1;
     return TheTree + TheInfo.count;
+}
+
+syntax_store **syntax_realloc(
+    syntax_store **stores, 
+    size_t        *count, 
+    size_t        *capacity) {
+
+    size_t bytes;
+    if (*count == *capacity) {
+        *capacity += NODES_SIZE;
+        bytes = sizeof(syntax_store) * (*capacity);
+        TheTree = (syntax_store *) realloc(stores, bytes); 
+    }
+
+    TheInfo.count += 1;
+    return stores + (*count);
 }
 
 bool _letters_identical(
@@ -68,7 +85,7 @@ bool _letters_ambiguous(
         for (size_t j = i + 1; j < store->size; ++j) {
             max = max_shared_vlaues(letters[i], lengths[i], 
                             letters[j], lengths[j]);
-            size_t m = max & 0xFF;
+            size_t m = max & 0x00F;
             if (m >= lengths[i]) {
                 lstore = Lex.store(store->content[j]->token_index);
                 printf("%s:%u:%u: error: alphabet definition is "
@@ -118,6 +135,7 @@ void _typecheck_alphabet_body_letters(syntax_store *store) {
         goto pass;
         
         fail: 
+            TheErrors += 1;
             free(lengths);
             free(letters);
             return;
@@ -191,6 +209,10 @@ void syntax_print(void) {
 }
 
 void syntax_free(void) {
+    for (size_t i = 0; i < TheInfo.capacity; ++i) {
+        if (TheTree[i].size > 0)
+            free(TheTree[i].content);
+    }
     free(TheTree);
 }
 
@@ -198,12 +220,19 @@ syntax_store *get_tree(void) {
     return &TheTree[TheInfo.count];
 }
 
+
+size_t syntax_errors(void) {
+    return TheErrors;
+}
+
+
 const struct syntax Syntax = {
-    .tree  =  get_tree,
-    .info  = &TheInfo,
-    .parse =  syntax_parse,
-    .push  =  syntax_push,
-    .check =  syntax_check,
-    .print =  syntax_print,
-    .free  =  syntax_free
+    .tree       =  get_tree,
+    .info       = &TheInfo,
+    .parse      =  syntax_parse,
+    .push       =  syntax_push,
+    .check      =  syntax_check,
+    .print      =  syntax_print,
+    .free       =  syntax_free,
+    .errors     =  syntax_errors
 };
