@@ -44,5 +44,5 @@ export module 010206b <010206a> {
 }
 ```
 
-And when we embed this in the browser maybe we can add some sugar to hide the module synatx somehow. Let's get to that later.  
+And when we embed this in the browser maybe we can add some sugar to hide the module syntax somehow. Let's get to that later.  
 
