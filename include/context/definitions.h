@@ -31,6 +31,10 @@ typedef struct pcontext {
     size_t          letters_count;
     size_t          letters_capacity;
     lexical_store **letters;
+
+    size_t          variables_count;
+    size_t          variables_capacity;
+    lexical_store **variables;
 } program_context;
 
 typedef struct {

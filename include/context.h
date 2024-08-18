@@ -9,6 +9,7 @@
 
 #include "context/definitions.h"
 #include "context/letter.h"
+#include "context/variable.h"
 
 struct context {
     void ( *validate) (void);

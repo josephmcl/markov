@@ -192,6 +192,8 @@ syntax_store *update_program_context(syntax_store *store) {
         return _update_context_letter(store, &TheInfo, TheContext);
     case ast_alphabet_body:
         return _update_context_alphabet_body(store);
+    case ast_variable:
+        return _update_context_variable(store, &TheInfo, TheContext);
     default: 
         return NULL; }
 }
@@ -211,29 +213,29 @@ void validate_program_context (void) {
     }
 
     // TODO: Remove.
-    printf("\n\n");
+    printf("\nContext report.\n");
+
     for (size_t i = 0; i < TheInfo.count; ++i) {
-        printf("Context address (%p) ", (void *) TheContext[i].syntax);
+        printf("Context %lu\n| address (%p)\n", i, (void *) TheContext[i].syntax);
         topic = TheContext[i].topic;
         if (topic == NULL) {
-            printf("(root context).");
+            printf("| parent NULL (root context) \n");
         }
-        else {
-            printf("parent (%p) ", (void *) topic->syntax);
+        else {      
+            printf("| parent  (%p)\n", (void *) topic->syntax);
             current = TheContext[i].syntax->content[1];
             if (current == NULL) {
-                printf("anonymous");
+                printf("| name    (anonymous)\n");
             }
             else {
                 lstore = Lex.store(current->token_index);
-                int size = (int) (lstore->end - lstore->begin);
-                printf("name (%.*s)", size, lstore->begin);
+                int size = (int) (lstore->end - lstore->begin);                        
+                printf("| name    (%.*s)\n", size, lstore->begin);
             }
         }
-
-        printf(" vars (%lu)\n", TheContext[i].letters_count);
+        printf("| letters (%lu)\n", TheContext[i].letters_count);
         for (size_t j = 0; j < TheContext[i].letters_count; ++j) {
-            printf("size  (%d) ", 
+            printf("| | size (%d) ", 
                 TheContext[i].letters[j]->end - 
                 TheContext[i].letters[j]->begin);
             printf("value (%.*s) ", 
@@ -242,6 +244,18 @@ void validate_program_context (void) {
                 TheContext[i].letters[j]->begin);
             printf("address (%p) \n",  
                 TheContext[i].letters[j]->begin);
+        }
+        printf("| variables (%lu)\n", TheContext[i].variables_count);
+        for (size_t j = 0; j < TheContext[i].variables_count; ++j) {
+            printf("| | size (%d) ", 
+                TheContext[i].variables[j]->end - 
+                TheContext[i].variables[j]->begin);
+            printf("value (%.*s) ", 
+                TheContext[i].variables[j]->end - 
+                TheContext[i].variables[j]->begin, 
+                TheContext[i].variables[j]->begin);
+            printf("address (%p) \n",  
+                TheContext[i].variables[j]->begin);
         }
         printf("\n");
     }
