@@ -9,14 +9,18 @@ typedef struct {
     uint8_t *Letters;
 } data_Data;
 
-static data_Data TheData = { 0 };
+data_Data TheData = { 0 };
 
 size_t data_letters_count(void) {
+    return TheData.LettersCount;
+}
 
+size_t data_letters_bytes(void) {
+    return TheData.LettersByteCount;
 }
 
 uint8_t *data_letters_data(void) {
-    
+    return &TheData.Letters[0];
 }
 
 bool data_letter_in_letters(lexical_store *letter) { 
@@ -127,12 +131,15 @@ void data_generate(
     }
 
     printf("}\n");
+    
+    printf("%p\n", &TheData.Letters[0]);
 
     return;
 }
 
 const struct data Data = {
     .letters_count = data_letters_count,
+    .letters_bytes = data_letters_bytes,
     .letters_data  = data_letters_data,
     .generate      = data_generate
 };

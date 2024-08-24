@@ -10,6 +10,7 @@ typedef struct {
     FILE *file;
     const uint8_t left, right, newline, blank;
     size_t depth;
+    void (*c) (char c);
     void (*l) (void);
     void (*r) (void);
     void (*space) (void);
@@ -35,6 +36,10 @@ void write_right(void) {
 
 void write_space(void) {
     fwrite(&Wat.blank, sizeof(uint8_t), 1, Wat.file);
+}
+
+void write_character(char c) {
+    fwrite(&c, sizeof(char), 1, Wat.file);
 }
 
 void write_indent(void) {
@@ -87,13 +92,55 @@ void wasm_generate_program(syntax_store *program) {
     return; 
 }
 
-void wm_generate_s_statements(void) {
+void wasm_write_letter_data(struct data *Data) {
+    // (data (i32.const 0) "< alphabet data here >")
+    char data[4] = "data";
+    char offset[11] = "i32.const 0";
+    Wat.l();    
+    fwrite(data, sizeof(char), 4, Wat.file);
+    Wat.space();
+    Wat.l();
+    fwrite(offset, sizeof(char), 11, Wat.file);
+    Wat.r();
+    Wat.space();
+    Wat.c('"');
+
+    size_t i, j, count, letters_count;
+    uint8_t *letters, *letter;
+
+    i = 0; j = 0; count = 0; 
+    letters_count = Data->letters_count();
+    letters = Data->letters_data();
+    bool clean = true;
+
+
+    while (count < letters_count) {
+
+        if (clean) {
+            letter = &letters[i];
+            clean = false;
+            j = i;
+        }
+        else if (letters[i] == 0x0) {
+            clean = true;
+            count += 1;
+            fwrite(letter, sizeof(uint8_t), i - j, Wat.file);
+        }
+        i += 1;
+    }
+    Wat.c('"');
+    Wat.r();
+    return;
+}
+
+void wm_generate_s_statements(struct data *Data) {
 
     // lexical_store *lstore;
     syntax_store *tree;
     // program_context *topic = NULL;
 
     if (Wat.l == NULL) {
+        Wat.c = write_character;
         Wat.l = write_left;
         Wat.r = write_right;
         Wat.space = write_space;
@@ -101,12 +148,16 @@ void wm_generate_s_statements(void) {
         Wat.increase_indent = increase_indent;
         Wat.decrease_indent = decrease_indent;
     }
+    
     char name[256] = "./bin/";
     char b[256] = "module";
     strcat(name, Lex.file->name);
     Wat.file = fopen(name,"w");  
     Wat.l();
     fwrite(b, sizeof(char), 6, Wat.file);
+
+    wasm_write_letter_data(Data);
+
     Wat.r();
     fclose(Wat.file);
 

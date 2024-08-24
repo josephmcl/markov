@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
 
     Data.generate(&Lex, &Syntax);    
 
-    //WebAssembly.generate();
+    WebAssembly.generate(&Data);
 
     /* Free all of the memory we used. */
     Syntax.free();

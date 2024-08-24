@@ -6,9 +6,10 @@
 #include "syntax.h"
 
 struct data {
-    size_t   ( * letters_count) (void);
-    uint8_t *( * letters_data)  (void);
-    void     ( * generate)      (
+    size_t   ( *letters_count) (void);
+    size_t   ( *letters_bytes) (void);
+    uint8_t *( *letters_data)  (void);
+    void     ( *generate)      (
         const struct lex    *Lex,
         const struct syntax *Syntax);
 };

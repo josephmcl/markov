@@ -172,7 +172,7 @@ void _print_node_string(syntax_store_type type) {
     switch (type) {
     case ast_program:               printf("Program"); return;
     case ast_scope:                 printf("Scope"); return;
-    case ast_scope_name:             printf("Scope Name"); return;
+    case ast_scope_name:            printf("Scope Name"); return;
     case ast_statements:            printf("Statements"); return;
     case ast_statement:             printf("Statement"); return;
     case ast_l_expression:          printf("L Expression"); return;

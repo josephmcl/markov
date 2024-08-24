@@ -8,9 +8,10 @@
 #include "syntax.h"
 #include "bison.h"
 #include "context.h"
+#include "data.h"
 
 struct webassembly {
-    void ( *generate) (void);
+    void ( *generate) (struct data *Data);
 }; 
 
 extern const struct webassembly WebAssembly;
