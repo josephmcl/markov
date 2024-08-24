@@ -1,6 +1,7 @@
 #include "lex.h"
 #include "syntax.h"
 #include "context.h"
+#include "data.h"
 #include "webassembly.h"
 
 int main(int argc, char **argv) {
@@ -23,14 +24,15 @@ int main(int argc, char **argv) {
         Syntax.free();
         Lex.free();
         return 1;
-    }
-        
+    } 
 
     Syntax.print();
 
     Context.validate();
 
-    WebAssembly.generate();
+    Data.generate(&Lex, &Syntax);    
+
+    //WebAssembly.generate();
 
     /* Free all of the memory we used. */
     Syntax.free();

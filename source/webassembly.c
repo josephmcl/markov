@@ -53,8 +53,45 @@ void decrease_indent(void) {
     }
 }
 
+void wasm_generate_assignment(syntax_store *statement) {
+    Wat.l();
+    // fwrite(b, sizeof(char), 6, Wat.file);
+    Wat.r();
+    return;
+}
+
+void wasm_generate(syntax_store *statement) {
+
+    switch (statement->type) {
+        case ast_assignment_statement:
+            wasm_generate_assignment(statement);
+        case ast_scope:
+            // wasm_generate_scope(statement);
+            ;
+        default: 
+            ;
+    }
+    return;
+}
+
+void wasm_generate_program(syntax_store *program) {
+
+    syntax_store* statements = program->content[0];
+    if (statements == NULL) {
+        return;
+    }
+    for (size_t i = 0; i < statements->size; ++i) {
+        // _print_node_string(statements->content[i]->type);
+        wasm_generate(program->content[i]);
+    }
+    return; 
+}
 
 void wm_generate_s_statements(void) {
+
+    // lexical_store *lstore;
+    syntax_store *tree;
+    // program_context *topic = NULL;
 
     if (Wat.l == NULL) {
         Wat.l = write_left;
@@ -72,6 +109,11 @@ void wm_generate_s_statements(void) {
     fwrite(b, sizeof(char), 6, Wat.file);
     Wat.r();
     fclose(Wat.file);
+
+    tree = Syntax.tree();
+    if (tree->type == ast_program) {
+        // wasm_generate_program(tree);
+    }
 }
 
 const struct webassembly WebAssembly = {

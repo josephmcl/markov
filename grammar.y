@@ -163,6 +163,7 @@ statementz
         s->size = 1;
         s->content = malloc(sizeof(syntax_store *));
         s->content[0] = (syntax_store *) $1;
+        s->content[0]->topic = s;
         $$ = s; }
 
     | statementz SEMICOLON statement { 
@@ -174,6 +175,7 @@ statementz
         statementz->content = (syntax_store **) realloc(
             statementz->content, bytes);
         statementz->content[statementz->size - 1] = statement;
+        statementz->content[statementz->size - 1]->topic = statementz;
         $$ = statementz; }
 
     | statementz COMMA statement {
@@ -184,6 +186,7 @@ statementz
         statementz->content = (syntax_store **) realloc(
             statementz->content, bytes);
         statementz->content[statementz->size - 1] = statement;
+        statementz->content[statementz->size - 1]->topic = statementz;
         $$ = statementz; }
     ;
 statement 
