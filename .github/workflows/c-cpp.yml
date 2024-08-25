@@ -29,8 +29,8 @@ jobs:
         #  so make sure it doesn't conflict with anything!
         actions-cache-folder: 'emsdk-cache'
 
-- name: Verify
-  run: emcc -v
+    - name: Verify
+      run: emcc -v
     - name: 'Create env file'
       run: |
         touch .env
