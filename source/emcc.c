@@ -4,6 +4,7 @@
 #include "data.h"
 #include "webassembly.h"
 
+// EMSCRIPTEN_KEEPALIVE
 int main(int argc, char **argv) {
 
     if (argc < 2)
