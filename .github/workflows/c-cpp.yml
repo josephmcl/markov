@@ -16,7 +16,7 @@ jobs:
     - name: 'Install Bison'
       run: sudo apt install bison
     - name: 'Install sshpass'
-      run: apt-get install sshpass
+      run: sudo apt-get install sshpass
     - name: 'Create env file'
       run: |
         touch .env
