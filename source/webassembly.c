@@ -11,6 +11,7 @@ typedef struct {
     const uint8_t left, right, newline, blank;
     size_t depth;
     void (*c) (char c);
+    void (*s) (const char *s, size_t n);
     void (*l) (void);
     void (*r) (void);
     void (*space) (void);
@@ -40,6 +41,10 @@ void write_space(void) {
 
 void write_character(char c) {
     fwrite(&c, sizeof(char), 1, Wat.file);
+}
+
+void write_string(const char *s, size_t n) {
+    fwrite(s, sizeof(char), n, Wat.file);
 }
 
 void write_indent(void) {
@@ -96,11 +101,15 @@ void wasm_write_letter_data(struct data *Data) {
     // (data (i32.const 0) "< alphabet data here >")
     char data[4] = "data";
     char offset[11] = "i32.const 0";
+    
+    Wat.c('\n');
+    Wat.increase_indent();
+    Wat.indent();
     Wat.l();    
-    fwrite(data, sizeof(char), 4, Wat.file);
+    Wat.s(data, 4);
     Wat.space();
     Wat.l();
-    fwrite(offset, sizeof(char), 11, Wat.file);
+    Wat.s(offset, 11);
     Wat.r();
     Wat.space();
     Wat.c('"');
@@ -124,12 +133,14 @@ void wasm_write_letter_data(struct data *Data) {
         else if (letters[i] == 0x0) {
             clean = true;
             count += 1;
-            fwrite(letter, sizeof(uint8_t), i - j, Wat.file);
+            Wat.s(letter, i - j);
         }
         i += 1;
     }
     Wat.c('"');
     Wat.r();
+    Wat.c('\n');
+    Wat.decrease_indent();
     return;
 }
 
@@ -141,6 +152,7 @@ void wm_generate_s_statements(struct data *Data) {
 
     if (Wat.l == NULL) {
         Wat.c = write_character;
+        Wat.s = write_string;
         Wat.l = write_left;
         Wat.r = write_right;
         Wat.space = write_space;
@@ -154,7 +166,8 @@ void wm_generate_s_statements(struct data *Data) {
     strcat(name, Lex.file->name);
     Wat.file = fopen(name,"w");  
     Wat.l();
-    fwrite(b, sizeof(char), 6, Wat.file);
+    Wat.s(b, 6);
+    Wat.space();
 
     wasm_write_letter_data(Data);
 

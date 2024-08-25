@@ -4,9 +4,11 @@
 
 include .env
 
-target = main
+target      = main
+target_emcc = markov-wasm 
 
 cc = ${CC}
+wc = ${WC}
 bc = ${BC}
 
 nil := 
@@ -21,17 +23,23 @@ bison_source = $(source_directory)/bison.c
 bison_header = $(header_directory)/bison.h
 bison_object = $(object_directory)/bison.o
 bison_grammar = grammar.y
-sources = $(wildcard $(source_directory)/*.c)
-sources += $(wildcard $(source_directory)/algorithm/*.c)
-sources += $(wildcard $(source_directory)/context/*.c)
-sources += $(wildcard $(source_directory)/grammar/*.c)
+sources_all = $(wildcard $(source_directory)/*.c)
+sources_all += $(wildcard $(source_directory)/algorithm/*.c)
+sources_all += $(wildcard $(source_directory)/context/*.c)
+sources_all += $(wildcard $(source_directory)/grammar/*.c)
+
+sources      = $(subst emcc.c,,$(sources_all))
+sources_emcc = $(subst main.c,,$(sources_all))
+
 headers = $(wildcard $(header_directory)/*.h)
-objects := $(sources:$(source_directory)/%.c=$(object_directory)/%.o)
 
+headers_emcc = $(wildcard $(header_directory)/*.h)
 
-entrypoint      := main
-test_entrypoint := test
-test_target := lab
+objects_all  := $(sources_all:$(source_directory)/%.c=$(object_directory)/%.o)
+
+objects      = $(filter-out $(object_directory)/emcc.o,$(objects_all))
+objects_emcc = $(filter-out $(object_directory)/main.o,$(objects_all))
+
 
 nil := 
 space := $(nil) $(nil)
@@ -47,11 +55,29 @@ define speaker
 	@$(1)
 endef
 
+all: native wasm
+
+native: $(binary_directory)/$(target)
+
+wasm: $(binary_directory)/$(target_emcc)
+
 $(binary_directory)/$(target): $(bison_object) $(objects) 
 	$(call speaker,\
 	$(cc) $(objects) $(bison_object) -o $@ $(libraries))
 
+$(binary_directory)/$(target_emcc): $(bison_object) $(objects_emcc) 
+	$(call speaker,\
+	$(cc) $(objects_emcc) $(bison_object) -o $@ $(libraries))
+
 $(objects): $(object_directory)/%.o: $(source_directory)/%.$(source_ext) 
+	mkdir -p object
+	mkdir -p object/algorithm
+	mkdir -p object/context
+	mkdir -p object/grammar
+	$(call speaker,\
+	$(cc) $(compiler_flags) -c $< -o $@ $(includes)) 
+
+$(objects_emcc): $(object_directory)/%.o: $(source_directory)/%.$(source_ext) 
 	mkdir -p object
 	mkdir -p object/algorithm
 	mkdir -p object/context
@@ -70,7 +96,7 @@ $(bison_source): $(bison_grammar)
 
 .PHONY: clean
 clean:
-	@$(rm) $(objects)
+	@$(rm) $(objects_all)
 	@$(rm) $(bison_source)
 	@$(rm) $(bison_header)
 
