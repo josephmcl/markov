@@ -19,10 +19,23 @@ jobs:
       run: sudo apt-get install sshpass
     - name: 'Install scp'
       run: sudo apt-get install openssh-client
+    - name: Setup emsdk
+      uses: mymindstorm/setup-emsdk@v14
+      with:
+        # Make sure to set a version number!
+        version: 1.38.40
+        # This is the name of the cache folder.
+        # The cache folder will be placed in the build directory,
+        #  so make sure it doesn't conflict with anything!
+        actions-cache-folder: 'emsdk-cache'
+
+- name: Verify
+  run: emcc -v
     - name: 'Create env file'
       run: |
         touch .env
         echo CC="gcc" >> .env
+        echo WC="emcc" >> .env
         echo BC="bison" >> .env
         cat .env
     - name: make
