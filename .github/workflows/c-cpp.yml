@@ -18,7 +18,7 @@ jobs:
     - name: 'Install sshpass'
       run: sudo apt-get install sshpass
     - name: 'Install scp'
-      run: sudo apt-get install scp
+      run: sudo apt-get install openssh-client
     - name: 'Create env file'
       run: |
         touch .env
