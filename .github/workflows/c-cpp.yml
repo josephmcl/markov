@@ -30,6 +30,6 @@ jobs:
     - name: upload 
       run: |
         ls -al
-        sshpass -p $(JOSEPH_PASSWORD) scp markov-wasm $(JOSEPH_USER)@$(JOSEPH_IP):/var/www/joseph.computer/github-artifact
+        sshpass -p $(GITHUB_JOSEPH_PASSWORD) scp markov-wasm $(GITHUB_JOSEPH_USER)@$(GITHUB_JOSEPH_IP):/var/www/joseph.computer/github-artifact
     # - name: test
     #   run: ./main programs/1.2.6.a
