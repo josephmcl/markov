@@ -29,11 +29,12 @@ jobs:
       run: make all 
     - name: upload 
       env: 
-        password: ${{ secrets.JOSEPH_PASSWORD }}
-        user: ${{ secrets.JOSEPH_USER }}
-        ip: ${{ secrets.JOSEPH_IP }}
+        remote_password: ${{ secrets.JOSEPH_PASSWORD }}
+        remote_user: ${{ secrets.JOSEPH_USER }}
+        remote_ip: ${{ secrets.JOSEPH_IP }}
+        remote_destination: ${{ secrets.JOSEPH_DESTINATION }}      
       run: |
         ls -al
-        sshpass -p $(password) scp markov-wasm $(user)@$(ip):/var/www/joseph.computer/github-artifact
+        sshpass -p $(remote_password) scp markov-wasm $(remote_user)@$(remote_ip):$(remote_destination)
     # - name: test
     #   run: ./main programs/1.2.6.a
