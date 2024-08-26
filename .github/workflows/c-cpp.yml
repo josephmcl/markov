@@ -48,6 +48,7 @@ jobs:
         remote_destination: ${{ secrets.JOSEPH_DESTINATION }}      
       run: |
         ls -al
-        sshpass -p "$remote_password" scp -o StrictHostKeyChecking=no markov-wasm $remote_user@$remote_ip:$remote_destination/
+        sshpass -p "$remote_password" scp -o StrictHostKeyChecking=no markov.wasm $remote_user@$remote_ip:$remote_destination/
+        sshpass -p "$remote_password" scp -o StrictHostKeyChecking=no markov.js $remote_user@$remote_ip:$remote_destination/
     # - name: test
     #   run: ./main programs/1.2.6.a
