@@ -5,10 +5,10 @@
 include .env
 
 target      = main
-target_emcc = markov-wasm 
+target_emcc = markov.js 
 
 cc = ${CC}
-wc = ${WC}
+wc = ${WC} 
 bc = ${BC}
 
 nil := 
@@ -22,6 +22,7 @@ binary_directory = .
 bison_source = $(source_directory)/bison.c
 bison_header = $(header_directory)/bison.h
 bison_object = $(object_directory)/bison.o
+bison_object_wasm = $(object_directory)/bison.o
 bison_grammar = grammar.y
 sources_all = $(wildcard $(source_directory)/*.c)
 sources_all += $(wildcard $(source_directory)/algorithm/*.c)
@@ -49,6 +50,7 @@ gccflags = -Wall -Wpedantic -g -O3
 compiler_flags := $(gccflags) 
 includes := -I$(header_directory)
 libraries := 
+wasm_flags := -s LINKABLE=1 -sEXPORTED_RUNTIME_METHODS=ccall
 
 define speaker
 	@echo [make:$$PPID] $(1)
@@ -65,9 +67,9 @@ $(binary_directory)/$(target): $(bison_object) $(objects)
 	$(call speaker,\
 	$(cc) $(objects) $(bison_object) -o $@ $(libraries))
 
-$(binary_directory)/$(target_emcc): $(bison_object) $(objects_emcc) 
+$(binary_directory)/$(target_emcc): $(bison_object_wasm) $(objects_emcc) 
 	$(call speaker,\
-	$(cc) $(objects_emcc) $(bison_object) -o $@ $(libraries))
+	$(wc) $(objects_emcc) $(bison_object_wasm) -o $@ $(wasm_flags))
 
 $(objects): $(object_directory)/%.o: $(source_directory)/%.$(source_ext) 
 	mkdir -p object
@@ -83,12 +85,17 @@ $(objects_emcc): $(object_directory)/%.o: $(source_directory)/%.$(source_ext)
 	mkdir -p object/context
 	mkdir -p object/grammar
 	$(call speaker,\
-	$(cc) $(compiler_flags) -c $< -o $@ $(includes)) 
+	$(wc) $(compiler_flags) -c $< -o $@ $(includes)) 
 
 $(bison_object): $(bison_source)
 	mkdir -p object
 	$(call speaker,\
 	$(cc) $(compiler_flags) -c $< -o $@ $(includes)) 
+
+$(bison_object_wasm): $(bison_source)
+	mkdir -p object
+	$(call speaker,\
+	$(wc) $(compiler_flags) -c $< -o $@ $(includes)) 
 
 $(bison_source): $(bison_grammar)
 	$(call speaker,\

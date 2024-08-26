@@ -3,22 +3,19 @@
 #include "context.h"
 #include "data.h"
 #include "webassembly.h"
+#include "emscripten.h"
 
-// EMSCRIPTEN_KEEPALIVE
+EMSCRIPTEN_KEEPALIVE
 int main(int argc, char **argv) {
 
-    if (argc < 2)
-        exit(-1);
-        
-    /* Read in file from stdin.        */
+    printf("Hello, World!\n");
+
+    // if (argc < 2)
+    //    exit(-1);
+
+    /*    
     Lex.read(argv[1]);
-    
-    /* Lex the file into tokens.       */
     Lex.analyze();
-
-    // Lex.print();
-
-    /* Parse the tokens into an AST.   */
     Syntax.parse();
 
     if (Syntax.errors()) {
@@ -35,9 +32,9 @@ int main(int argc, char **argv) {
 
     WebAssembly.generate(&Data);
 
-    /* Free all of the memory we used. */
     Syntax.free();
     Lex.free();
+    */
 
     return 0;
 }
