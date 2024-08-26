@@ -39,7 +39,7 @@ jobs:
         echo BC="bison" >> .env
         cat .env
     - name: make
-      run: make all 
+      run: make wasm 
     - name: upload 
       env: 
         remote_password: ${{ secrets.JOSEPH_PASSWORD }}
