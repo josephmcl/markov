@@ -11,6 +11,7 @@
 #include "data.h"
 
 struct webassembly {
+    void ( *use_stdout) (void);
     void ( *generate) (struct data *Data);
 }; 
 

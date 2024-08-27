@@ -144,9 +144,14 @@ void wasm_write_letter_data(struct data *Data) {
     return;
 }
 
+void wasm_use_stdout(void) {
+    Wat.file = stderr;
+}
+
 void wm_generate_s_statements(struct data *Data) {
 
     // lexical_store *lstore;
+    bool file_open = false;
     syntax_store *tree;
     // program_context *topic = NULL;
 
@@ -164,22 +169,29 @@ void wm_generate_s_statements(struct data *Data) {
     char name[256] = "./bin/";
     char b[256] = "module";
     strcat(name, Lex.file->name);
-    Wat.file = fopen(name,"w");  
+
+    if (Wat.file == NULL) {
+        Wat.file = fopen(name,"w");  
+        file_open = true;
+    }
     Wat.l();
     Wat.s(b, 6);
     Wat.space();
 
     wasm_write_letter_data(Data);
 
-    Wat.r();
-    fclose(Wat.file);
+    Wat.s(")\n",2);
 
+    
     tree = Syntax.tree();
     if (tree->type == ast_program) {
         // wasm_generate_program(tree);
     }
+
+    if (file_open) fclose(Wat.file);
 }
 
 const struct webassembly WebAssembly = {
+    .use_stdout   = wasm_use_stdout,
     .generate = &wm_generate_s_statements
 };

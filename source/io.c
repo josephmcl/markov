@@ -44,6 +44,24 @@ file_info read_file(const char *path, const char *options) {
     return rv;
 } 
 
+file_info read_string(const char *s) {
+    uint8_t b;
+    file_info rv = {0};
+    
+    rv.length = strlen(s);
+    rv.capacity = strlen(s);
+
+    rv.content = malloc(rv.length * sizeof(uint8_t));
+    
+    strcpy(rv.content, s);
+        
+    rv.name = (uint8_t *) calloc(2, sizeof(uint8_t));
+    rv.name[0] = '.'; rv.name[1] = 0x0;
+    rv.end = &rv.content[rv.length];
+    return rv;
+} 
+
+
 char bleach(char c) {
     if (c == '\r')
         return ' '; 

@@ -29,6 +29,7 @@ struct lex {
     lexical_info *info;
     lexical_token ( *token) (size_t index);
     lexical_store *( *store) (size_t index);
+    int ( *read_string) (const char *s);
     int ( *read)(const char *path);
     void ( *free)();
     int ( *analyze)();

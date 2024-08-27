@@ -32,6 +32,11 @@ int lexer_read(const char *path) {
     return 0;
 }
 
+int lexer_read_string(const char *s) {
+    TheFile = read_string(s);
+    return 0;
+}
+
 void lexer_free() {
     free(TheFile.content);
     free(TheFile.name);
@@ -348,6 +353,7 @@ const struct lex Lex = {
     .token = lexer_get_token,
     .store = lexer_get_store,
     
+    .read_string = lexer_read_string,
     .read = lexer_read,
     .free = lexer_free,
     .analyze = analyze,

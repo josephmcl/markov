@@ -29,6 +29,8 @@ struct file_info_s {
 
 file_info read_file(const char *path, const char *options);
 
+file_info read_string(const char *s);
+
 /* please be careful */
 char bleach(char c);
 char peroxide(char c);
