@@ -8,7 +8,7 @@ target      = main
 target_emcc = markov.js 
 
 cc = ${CC}
-wc = ${WC} 
+wc = ${WC} -s EXPORTED_RUNTIME_METHODS=["print"] -s ALLOW_MEMORY_GROWTH=1
 bc = ${BC}
 
 nil := 
