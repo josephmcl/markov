@@ -132,8 +132,6 @@ void data_generate(
 
     printf("}\n");
     
-    printf("%p\n", &TheData.Letters[0]);
-
     return;
 }
 

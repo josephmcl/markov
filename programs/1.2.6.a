@@ -1,4 +1,4 @@
-export module 010206a {
+<=> 010206a {
     A_0 = {a, b};
     A_1 = {a, b, c, d};
     A_2 = {a, b, c, d, e};

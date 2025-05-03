@@ -1,0 +1,20 @@
+a = {b}.
+
+<=> 0123a {
+    a = {a, b, c}.
+
+    <=> scope_name { 
+        b = {a, b, c},
+        c = {c, d, e}.
+    }
+
+    <@> another_name {
+        d = {a, b, c}.
+    }
+
+    <> {
+        b = {c}
+    }
+}.
+
+

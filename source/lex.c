@@ -331,6 +331,7 @@ int lexer_get_token_bison_compat(size_t index) {
         case TOKEN_RANGLE: return RANGLE;
         case TOKEN_LBRACKET: return LBRACKET;
         case TOKEN_RBRACKET: return RBRACKET;
+        case TOKEN_ATSIGN: return ATSIGN;
         case TOKEN_SEMICOLON: return SEMICOLON;
         case TOKEN_PERIOD: return PERIOD;
         case TOKEN_EN_IN: return EN_IN;

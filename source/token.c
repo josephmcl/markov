@@ -162,6 +162,7 @@ lexical_token single_byte_token(uint8_t c) {
     case '.': return TOKEN_PERIOD;
     case '<': return TOKEN_LANGLE;
     case '>': return TOKEN_RANGLE;
+    case '@': return TOKEN_ATSIGN;
     default: return TOKEN_UNKNOWN;
     }
 }

@@ -66,6 +66,7 @@
 %token RANGLE
 %token LBRACKET
 %token RBRACKET
+%token ATSIGN
 
 %token EN_IN          
 %token EN_NOT          
@@ -76,6 +77,7 @@
 
 %type<yuck> program
 %type<yuck> statements
+%type<yuck> import
 %type<yuck> scope
 %type<yuck> scope_name
 %type<yuck> scope_context
@@ -86,6 +88,7 @@
 %type<yuck> l_expression
 %type<yuck> variable
 %type<yuck> r_expression
+%type<yuck> extends_expression
 %type<yuck> alphabet_body
 %type<yuck> u_letters
 %type<yuck> letters
@@ -95,26 +98,30 @@
 %%
 
 program 
-    : statements { $$ = program_statements($1); }
+    : statements { 
+        $$ = program_statements($1); }
     ;
 statements  
-    : { $$ = statements_root(); }
+    : { 
+        $$ = statements_root(); }
     | statements statementz { 
         $$ = statements_statements_statementz($1, $2); }
     | statements statementz PERIOD {
         $$ = statements_statements_statementz_PERIOD($1, $2); }
-    | statements import { }
+    | statements import { $$ = $1; }
     | statements scope  {
         $$ = statements_statements_scope($1, $2); }
     ;
 import 
-    : EN_IMPORT EN_MODULE IDENTIFIER {}
+    : EN_IMPORT EN_MODULE IDENTIFIER { $$ = NULL; }
     ;
 scope 
     : scope_export scope_module scope_name LCURL statements RCURL {
         $$ = scope_scope($5, $3); }
     | scope_context scope_name LCURL statements RCURL {
         $$ = scope_scope($4, $2); }
+    | scope_export scope_context scope_name LCURL statements RCURL {
+        $$ = scope_scope($5, $3); }
     ;
 scope_export
     : EN_EXPORT {}
@@ -123,7 +130,8 @@ scope_module
     : EN_MODULE {}
     ;
 scope_name 
-    : { $$ = NULL; } 
+    : { 
+        $$ = NULL; } 
     | IDENTIFIER {
         syntax_store *s = Syntax.push();
         s->type = ast_scope_name;
@@ -147,6 +155,7 @@ u_inherited_scope_names
     : { }
     | inherited_scope_names {}
     | EQUAL {} 
+    | ATSIGN {} 
     ;
 inherited_scope_names
     : inherited_scope_name {}
@@ -191,8 +200,8 @@ statementz
     ;
 statement 
     : assignment_statement { $$ = $1; }
-    | r_expression         { }
-    | function             { }
+    | r_expression         { $$ = $1; }
+    | function             { $$ = $1; }
     ;
 assignment_statement 
     : l_expression EQUAL r_expression {
@@ -222,12 +231,25 @@ variable
     ;
 r_expression
     : alphabet_body { $$ = $1; }
-    | extends_expression {}
+    | extends_expression { $$ = $1; }
     | variable { $$ = $1; }
     ;
 extends_expression
-    : r_expression EXTENDS    r_expression {}
-    | r_expression EN_EXTENDS r_expression {}
+    : r_expression EXTENDS r_expression {
+        syntax_store *s = Syntax.push();
+        syntax_store *r_expression_l = (syntax_store *) $1;
+        syntax_store *r_expression_r = (syntax_store *) $3;
+        s->type = ast_extends_expression;
+        s->token_index = TheIndex;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = (syntax_store *) r_expression_l;
+        s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) r_expression_r;
+        s->content[1]->topic = s;
+        $$ = s;
+    }
+    | r_expression EN_EXTENDS r_expression { $$ = $1; }
     ;
 alphabet_body
     : LCURL u_letters RCURL { 
