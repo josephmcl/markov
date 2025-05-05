@@ -87,7 +87,8 @@ syntax_store *_update_context_scope(syntax_store *store) {
     current->content_count = 0;
     current->content_capacity = 0;
     bool found = false;
-    lexical_store *letter;
+    lexical_store *letter, *capture_lstore;
+    syntax_store *capture_store;
 
     /* Determine the topic context. */
     program_context *topic;
@@ -147,13 +148,34 @@ syntax_store *_update_context_scope(syntax_store *store) {
     /* Set the topic of the current context. */
     current->topic = topic;
 
+     /* Set the capture of the current context. */
+     // TODO: This should be its own function.
+    capture_store = current->syntax->content[2];
+    if (capture_store == NULL) {
+        current->capture = capture_pure;
+    } 
+    else {
+        if (capture_store->type == ast_scope_context_names_literal) {
+            capture_lstore = Lex.store(capture_store->token_index);
+            if (capture_lstore->token == TOKEN_ATSIGN) {
+                current->capture = capture_letters;
+            }
+            if (capture_lstore->token == TOKEN_EQUAL) {
+                current->capture = capture_parent;
+            }
+        }
+    }
+
     if (topic != NULL) {
 
         _context_push_content(topic, current);
 
-        for (size_t i = 0; topic->letters_count; ++i) {
-            letter = topic->letters[i];
-            _update_known_context_letter(letter, current); 
+        if (current->capture != capture_pure) {
+
+            for (size_t i = 0; topic->letters_count; ++i) {
+                letter = topic->letters[i];
+                _update_known_context_letter(letter, current); 
+            }
         }
     }
 
@@ -233,6 +255,33 @@ void validate_program_context (void) {
                 printf("| name    (%.*s)\n", size, lstore->begin);
             }
         }
+        
+        current = TheContext[i].syntax->content[2];
+        // lstore = Lex.store(current->token_index);
+
+        if (TheContext[i].capture == capture_pure) {
+            printf("| capture (none)\n");
+        }
+        else if (TheContext[i].capture == capture_letters) {
+            printf("| capture (letters)\n");
+        }
+        else if (TheContext[i].capture == capture_parent) {
+            printf("| capture (parent)\n");
+        }
+
+        if (current == NULL) {
+            printf("| capture (none)\n");
+        }
+        else if (current->type == ast_scope_context_names_literal) {
+            lstore = Lex.store(current->token_index);
+            if (lstore->token == TOKEN_ATSIGN) {
+                printf("| capture (letters)\n");
+            }
+            if (lstore->token == TOKEN_EQUAL) {
+                printf("| capture (parent)\n");
+            }
+        }
+
         printf("| letters (%lu)\n", TheContext[i].letters_count);
         for (size_t j = 0; j < TheContext[i].letters_count; ++j) {
             printf("| | size (%d) ", 

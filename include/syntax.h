@@ -13,6 +13,7 @@ typedef enum {
     ast_scope, 
     ast_scope_name,
     ast_scope_type,
+    ast_scope_context_names_literal,
     ast_statements,
     ast_statement,
     ast_function,
@@ -22,6 +23,7 @@ typedef enum {
     ast_extends_expression,
     ast_variable, 
     ast_assignment_statement, 
+    ast_import_statement,
     ast_alphabet_body,
     ast_letters,
     ast_letter

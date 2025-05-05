@@ -3,6 +3,13 @@
 #include "lex.h"
 #include "syntax.h"
 
+typedef enum {
+   capture_pure    = 0,
+   capture_parent  = 1,
+   capture_letters = 2,
+   capture_list    = 3 // TODO: Support this.
+} context_capture;
+
 /* Struct containing the context of the program's scope. Including 
    variable names and compile-time data known only to this scope. */
 typedef struct pcontext {
@@ -27,6 +34,8 @@ typedef struct pcontext {
        otherwise. */
     // TODO: implement.
     bool exported;
+
+    context_capture capture;
 
     size_t          letters_count;
     size_t          letters_capacity;

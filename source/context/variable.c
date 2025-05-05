@@ -71,6 +71,12 @@ syntax_store *_update_context_variable(
 syntax_store *_update_known_context_variable(
     lexical_store   *variable,
     program_context *context) {
+    
+    // TODO: Short circuit if we have the wrong capture type. I would
+    //       like a better way to do this though.
+    if (context->capture != capture_parent) {
+        return NULL;
+    }
 
     if (!_context_has_variable(context, variable)) {
         _context_push_variable(context, variable);

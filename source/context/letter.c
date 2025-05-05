@@ -69,6 +69,12 @@ syntax_store *_update_known_context_letter(
     lexical_store   *letter,
     program_context *context) {
 
+    // TODO: Short circuit if we have the wrong capture type. I would
+    //       like a better way to do this though.
+    if (context->capture == capture_pure) {
+        return NULL;
+    }
+
     if (!_context_has_letter(context, letter)) {
         _context_push_letter(context, letter);
 
