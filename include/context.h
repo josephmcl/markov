@@ -10,6 +10,7 @@
 #include "context/definitions.h"
 #include "context/letter.h"
 #include "context/variable.h"
+#include "context/alphabet_literal.h"
 
 struct context {
     void ( *validate) (void);

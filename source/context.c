@@ -185,23 +185,6 @@ syntax_store *_update_context_scope(syntax_store *store) {
     return NULL;
 }
 
-syntax_store * _update_context_alphabet_body(syntax_store *store) {
-
-    syntax_store *context = store->topic->topic;
-    size_t index = TheInfo.count;
-
-    for (size_t i = 0; i < TheInfo.count; ++i) {
-        if (context == TheContext[i].syntax) {
-            index = i;
-            break;
-        }
-    }
-
-
-    return NULL;
-}
-
-
 syntax_store *update_program_context(syntax_store *store) {
     switch (store->type) { 
     case ast_statements:
@@ -213,7 +196,7 @@ syntax_store *update_program_context(syntax_store *store) {
     case ast_letter:
         return _update_context_letter(store, &TheInfo, TheContext);
     case ast_alphabet_body:
-        return _update_context_alphabet_body(store);
+        return _update_context_alphabet_literal(store, &TheInfo, TheContext);
     case ast_variable:
         return _update_context_variable(store, &TheInfo, TheContext);
     default: 
@@ -234,25 +217,27 @@ void validate_program_context (void) {
         }
     }
 
+
+
     // TODO: Remove.
     printf("\nContext report.\n");
 
     for (size_t i = 0; i < TheInfo.count; ++i) {
-        printf("Context %lu\n| address (%p)\n", i, (void *) TheContext[i].syntax);
+        printf("Context %lu\n| address   (%p)\n", i, (void *) TheContext[i].syntax);
         topic = TheContext[i].topic;
         if (topic == NULL) {
-            printf("| parent NULL (root context) \n");
+            printf("| parent   (NULL, root context) \n");
         }
         else {      
-            printf("| parent  (%p)\n", (void *) topic->syntax);
+            printf("| parent    (%p)\n", (void *) topic->syntax);
             current = TheContext[i].syntax->content[1];
             if (current == NULL) {
-                printf("| name    (anonymous)\n");
+                printf("| name      (anonymous)\n");
             }
             else {
                 lstore = Lex.store(current->token_index);
                 int size = (int) (lstore->end - lstore->begin);                        
-                printf("| name    (%.*s)\n", size, lstore->begin);
+                printf("| name      (%.*s)\n", size, lstore->begin);
             }
         }
         
@@ -260,29 +245,31 @@ void validate_program_context (void) {
         // lstore = Lex.store(current->token_index);
 
         if (TheContext[i].capture == capture_pure) {
-            printf("| capture (none)\n");
+            printf("| capture   (none)\n");
         }
         else if (TheContext[i].capture == capture_letters) {
-            printf("| capture (letters)\n");
+            printf("| capture   (letters)\n");
         }
         else if (TheContext[i].capture == capture_parent) {
-            printf("| capture (parent)\n");
+            printf("| capture   (parent)\n");
         }
 
         if (current == NULL) {
-            printf("| capture (none)\n");
+            printf("| capture   (none)\n");
         }
         else if (current->type == ast_scope_context_names_literal) {
             lstore = Lex.store(current->token_index);
             if (lstore->token == TOKEN_ATSIGN) {
-                printf("| capture (letters)\n");
+                printf("| capture   (letters)\n");
             }
             if (lstore->token == TOKEN_EQUAL) {
-                printf("| capture (parent)\n");
+                printf("| capture   (parent)\n");
             }
         }
 
-        printf("| letters (%lu)\n", TheContext[i].letters_count);
+        printf("| Alphabets (%lu)\n", TheContext[i].alphabet_literals_count);
+
+        printf("| letters   (%lu)\n", TheContext[i].letters_count);
         for (size_t j = 0; j < TheContext[i].letters_count; ++j) {
             printf("| | size (%d) ", 
                 TheContext[i].letters[j]->end - 
