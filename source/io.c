@@ -51,6 +51,8 @@ file_info read_string(const char *s) {
     rv.length = strlen(s);
     rv.capacity = strlen(s);
 
+    printf("xxx...\n");
+
     rv.content = malloc(rv.length * sizeof(uint8_t));
     
     strcpy(rv.content, s);

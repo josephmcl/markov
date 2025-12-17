@@ -84,8 +84,16 @@ syntax_store *_update_context_scope(syntax_store *store) {
     current->syntax = store;
     current->letters_count = 0;
     current->letters_capacity = 0;
+    current->letters = NULL;
     current->content_count = 0;
     current->content_capacity = 0;
+    current->content = NULL;
+    current->variables_count = 0;
+    current->variables_capacity = 0;
+    current->variables = NULL;
+    current->alphabet_literals_count = 0;
+    current->alphabet_literals_capacity = 0;
+    current->alphabet_literals = NULL;
     bool found = false;
     lexical_store *letter, *capture_lstore;
     syntax_store *capture_store;
@@ -98,10 +106,10 @@ syntax_store *_update_context_scope(syntax_store *store) {
     if (TheInfo.count <= 1) { 
         topic = NULL;
     }
-
     /* Otherwise check prior contexts for the nearest context that  
        contains the current context. */
     else {
+
         syntax_store *statements;
         for (size_t i = 1; i != TheInfo.count; ++i) {
         
@@ -138,11 +146,15 @@ syntax_store *_update_context_scope(syntax_store *store) {
         // TODO: Maybe this can be improved in the future with better 
         //       parsing infrastructure. 
     }
-    
+
+
     // TODO: Will need better error propagation at some point. 
     if (TheInfo.count > 1 && !found) {
         printf("Error. Topic program context could not be found in "
                "AST.\n");
+    }
+    else {
+        printf("Found parent context.\n");
     }
 
     /* Set the topic of the current context. */
@@ -166,18 +178,22 @@ syntax_store *_update_context_scope(syntax_store *store) {
         }
     }
 
+    printf("Captured current context.\n");
+
     if (topic != NULL) {
 
         _context_push_content(topic, current);
 
         if (current->capture != capture_pure) {
 
-            for (size_t i = 0; topic->letters_count; ++i) {
+            for (size_t i = 0; i < topic->letters_count; ++i) {
                 letter = topic->letters[i];
-                _update_known_context_letter(letter, current); 
+                _update_known_context_letter(letter, current);
             }
         }
     }
+
+    printf("Updated current context.\n");
 
     // TODO: Propagate variable information
     
@@ -203,12 +219,23 @@ syntax_store *update_program_context(syntax_store *store) {
         return NULL; }
 }
 
+void update_program_context_letter_data(program_context *context) {
+    
+    alphabet_literal *alphabet;
+    for (size_t i = 0; i < context->alphabet_literals_count; ++i) {
+        alphabet = context->alphabet_literals[i];
+
+        //alphabet_literal =
+    }
+}
+
 void validate_program_context (void) {
 
     lexical_store *lstore;
     syntax_store *tree, *current;
     program_context *topic = NULL;
     tree = Syntax.tree();
+    
     for (size_t i = 0; i < Syntax.info->count; ++i) {
         current = tree - i;
         if (current != NULL) {
@@ -217,6 +244,11 @@ void validate_program_context (void) {
         }
     }
 
+    for (size_t i = 0; i < TheInfo.count; ++i) {
+
+        update_program_context_letter_data(context_root() + i);
+        
+    }
 
 
     // TODO: Remove.

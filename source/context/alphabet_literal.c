@@ -70,18 +70,21 @@ syntax_store *_update_context_alphabet_literal(
         }
     }
 
-    if (index == info->count) 
+    if (index == info->count) {
         printf("Error. Could not find matching context for "
                "alphabet.\n");
-        // TODO: Gracefully handle errors... 
+        // TODO: Gracefully handle errors...
+        return NULL;
+    }
 
-    /* Add variable to the current context if the context does not 
+    /* Add variable to the current context if the context does not
        already have that variable. */
 
     alphabet_literal_push();
     alphabet = alphabet_literal_current();
 
     alphabet->store = store;
+    alphabet->context = context;
 
     if (!_context_has_alphabet_literal(&context[index], alphabet)) {
     

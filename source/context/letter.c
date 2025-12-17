@@ -16,6 +16,7 @@ syntax_store *_update_context_letter(
     program_context      *context) {
 
     syntax_store  *topic = store;
+    syntax_store  *topic_statement = store;
     lexical_store *letter;
     size_t         index;
 
@@ -46,11 +47,13 @@ syntax_store *_update_context_letter(
         }
     }
     
-    if (index == info->count) 
+    if (index == info->count) {
         printf("Error. Could not find matching context for letter.\n");
-        // TODO: Gracefully handle errors... 
-    
-    /* Add letter to the current context if the context does not 
+        // TODO: Gracefully handle errors...
+        return NULL;
+    }
+
+    /* Add letter to the current context if the context does not
        already have that letter. */
     letter = Lex.store(store->token_index);
     if (!_context_has_letter(&context[index], letter)) {
@@ -65,6 +68,7 @@ syntax_store *_update_context_letter(
     return NULL;
 }
 
+// TODO: WHY DID I DECIDE TO USE LEXICAL DATA HERE!!!!!
 syntax_store *_update_known_context_letter(
     lexical_store   *letter,
     program_context *context) {
@@ -75,11 +79,36 @@ syntax_store *_update_known_context_letter(
         return NULL;
     }
 
-    if (!_context_has_letter(context, letter)) {
+    printf("context is impure ... \n");
+
+    lexical_store *lstore;
+    syntax_store *name = context->syntax->content[1];
+    if (name == NULL) {
+        printf("| name      (anonymous)\n");
+    }
+    else {
+        lstore = Lex.store(name->token_index);
+        int size = (int) (lstore->end - lstore->begin);                        
+        printf("| name      (%.*s)\n", size, lstore->begin);
+    }
+
+    // Use the scope_context's token (content[2]) for position comparison
+    // This points to the = in <=> which marks where the scope begins
+    syntax_store *scope_context = context->syntax->content[2];
+    lexical_store *context_token;
+    if (scope_context != NULL) {
+        context_token = Lex.store(scope_context->token_index);
+    } else {
+        context_token = Lex.store(context->syntax->token_index);
+    }
+    if (!_context_has_letter(context, letter) && context_token->begin > letter->begin) {
         _context_push_letter(context, letter);
+
+
 
         for (size_t i = 0; i < context->content_count; ++i) {
             _update_known_context_letter(letter, context->content[i]);
+            printf("banan\n");
         } 
     }
 

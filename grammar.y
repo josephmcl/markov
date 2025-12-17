@@ -40,7 +40,7 @@
         }
     }
     int yyerror(char *error) {
-        printf("Parser error: %s \n", error);
+        printf("Parser error: %s at token index %lu\n", error, TheIndex);
         return 0;
     }
 %}
@@ -109,34 +109,6 @@ statements
         $$ = statements_statements_statementz($1, $2); }
     | statements statementz PERIOD {
         $$ = statements_statements_statementz_PERIOD($1, $2); }
-    | statements scope  {
-        $$ = statements_statements_scope($1, $2); }
-    ;
-scope 
-    : scope_export scope_module scope_name LCURL statements RCURL {
-        $$ = scope_scope($5, $3); }
-    | scope_context scope_name LCURL statements RCURL {
-        $$ = scope_scope_context_scope($1, $4, $2); }
-    | scope_export scope_context scope_name LCURL statements RCURL {
-        $$ = scope_scope_context_scope($2, $5, $3); }
-    ;
-scope_export
-    : EN_EXPORT {}
-    ;
-scope_module
-    : EN_MODULE {}
-    ;
-scope_name 
-    : { $$ = NULL; } 
-    | IDENTIFIER {
-        syntax_store *s = Syntax.push();
-        s->type = ast_scope_name;
-        s->token_index = TheIndex;
-        $$ = s; }
-    ;
-scope_context
-    : LANGLE u_inherited_scope_names RANGLE { 
-        $$ = $2; }
     ;
 
 function        
@@ -208,6 +180,33 @@ statement
     | import_statement     { $$ = $1; }
     | r_expression         { $$ = $1; }
     | function             { $$ = $1; }
+    | scope                { $$ = $1; }
+    ;
+scope 
+    : scope_export scope_module scope_name LCURL statements RCURL {
+        $$ = scope_scope($5, $3); }
+    | scope_context scope_name LCURL statements RCURL {
+        $$ = scope_scope_context_scope($1, $4, $2); }
+    | scope_export scope_context scope_name LCURL statements RCURL {
+        $$ = scope_scope_context_scope($2, $5, $3); }
+    ;
+scope_export
+    : EN_EXPORT {}
+    ;
+scope_module
+    : EN_MODULE {}
+    ;
+scope_name 
+    : { $$ = NULL; } 
+    | IDENTIFIER {
+        syntax_store *s = Syntax.push();
+        s->type = ast_scope_name;
+        s->token_index = TheIndex;
+        $$ = s; }
+    ;
+scope_context
+    : LANGLE u_inherited_scope_names RANGLE { 
+        $$ = $2; }
     ;
 assignment_statement 
     : l_expression EQUAL r_expression {

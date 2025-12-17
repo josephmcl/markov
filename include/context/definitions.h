@@ -12,9 +12,11 @@ typedef enum {
    capture_list    = 3 // TODO: Support this.
 } context_capture;
 
+struct pcontext;
 typedef struct aliteral {
 
-   syntax_store         *store;
+   syntax_store     *store;
+   struct pcontext  *context;
 
    /* List of pointers to other alphabets known to this alphabet. */
    size_t            alphabets_count;
@@ -22,13 +24,12 @@ typedef struct aliteral {
 
    /* List of pointers to lexical stores containing letters that 
       alphabets known to this alphabet use. */
-   size_t            letters_count;
-   /* NOTE: Letters is allocated once by the program context; all 
-            alphabets in this context share the same pointer. */
-   lexical_store   **letters;
-
+   size_t            letters_count; 
+   size_t          **letters; 
    /* A binary format of the letters. 1 marks inclucsion in this 
       alphabet. */
+   
+   size_t            letters_bytes_count; 
    uint8_t         **letters_bytes;
 
 } alphabet_literal;
@@ -64,7 +65,6 @@ typedef struct pcontext {
     size_t          letters_capacity;
     lexical_store **letters;
     
-
     size_t          variables_count;
     size_t          variables_capacity;
     lexical_store **variables;

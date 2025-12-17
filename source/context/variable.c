@@ -45,13 +45,15 @@ syntax_store *_update_context_variable(
             break;
         }
     }
-    
-    if (index == info->count) 
+
+    if (index == info->count) {
         printf("Error. Could not find matching context for "
                "variable.\n");
-        // TODO: Gracefully handle errors... 
-    
-    /* Add variable to the current context if the context does not 
+        // TODO: Gracefully handle errors...
+        return NULL;
+    }
+
+    /* Add variable to the current context if the context does not
        already have that variable. */
     variable = Lex.store(store->token_index);
     if (!_context_has_variable(&context[index], variable)) {
@@ -78,7 +80,15 @@ syntax_store *_update_known_context_variable(
         return NULL;
     }
 
-    if (!_context_has_variable(context, variable)) {
+    // Use the scope_context's token (content[2]) for position comparison
+    syntax_store *scope_context = context->syntax->content[2];
+    lexical_store *context_token;
+    if (scope_context != NULL) {
+        context_token = Lex.store(scope_context->token_index);
+    } else {
+        context_token = Lex.store(context->syntax->token_index);
+    }
+    if (!_context_has_variable(context, variable) && context_token->begin > variable->begin) {
         _context_push_variable(context, variable);
 
         for (size_t i = 0; i < context->content_count; ++i) {
