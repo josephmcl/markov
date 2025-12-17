@@ -100,6 +100,11 @@ lexical_store lexer_next() {
     }
     */
     
+    /* STRING LITERAL */
+    else if ((offset = string_literal(head, TheFile.end)) != head) {
+        rv.end = offset;
+        rv.token = TOKEN_STRING_LITERAL;
+    }
     /* IDENTIFIER */
     else if ((offset = identifier(head)) != head) {
         rv.end = offset;
@@ -319,6 +324,7 @@ int lexer_get_token_bison_compat(size_t index) {
         case TOKEN_END_OF_CONTENT: return TOKEN_END_OF_CONTENT;
         case TOKEN_LINE_END: return TOKEN_UNUSED_BY_PARSER;
         case TOKEN_IDENTIFIER: return IDENTIFIER;
+        case TOKEN_STRING_LITERAL: return STRING_LITERAL;
         case TOKEN_IN: return IN;
         case TOKEN_NOT: return NOT;
         case TOKEN_EXTENDS: return EXTENDS;

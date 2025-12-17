@@ -19,6 +19,7 @@ typedef enum {
     TOKEN_LINE_END         = 2,
     TOKEN_LINE_COMMENT     = 3,
     TOKEN_IDENTIFIER       = 4,
+    TOKEN_STRING_LITERAL   = 5,  // "..." or '...'
     
     TOKEN_IN               = MULTI_BYTE_TOKENS,     // ∈  [1.2.5]
     TOKEN_NOT              = MULTI_BYTE_TOKENS + 1, // ¬  [1.2.5]

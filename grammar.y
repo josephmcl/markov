@@ -50,6 +50,7 @@
 }
 
 %token IDENTIFIER
+%token STRING_LITERAL
 
 %token IN     
 %token NOT 
@@ -104,7 +105,10 @@
 %type<yuck> u_letters
 %type<yuck> letters
 %type<yuck> letter
+%type<yuck> word_literal
+%type<yuck> word_in_expression
 %type<yuck> IDENTIFIER
+%type<yuck> STRING_LITERAL
 
 %%
 
@@ -260,6 +264,8 @@ r_expression
     | union_expression { $$ = $1; }
     | intersect_expression { $$ = $1; }
     | difference_expression { $$ = $1; }
+    | word_literal { $$ = $1; }
+    | word_in_expression { $$ = $1; }
     | variable { $$ = $1; }
     ;
 extends_expression
@@ -414,10 +420,48 @@ letters
     }
     ;
 letter
-    : IDENTIFIER { 
+    : IDENTIFIER {
         syntax_store *s = Syntax.push();
         s->type = ast_letter;
         s->token_index = TheIndex;
+        $$ = s;
+    }
+    ;
+word_literal
+    : STRING_LITERAL {
+        syntax_store *s = Syntax.push();
+        s->type = ast_word_literal;
+        s->token_index = TheIndex;
+        $$ = s;
+    }
+    ;
+word_in_expression
+    : word_literal IN r_expression {
+        syntax_store *s = Syntax.push();
+        syntax_store *word = (syntax_store *) $1;
+        syntax_store *alphabet = (syntax_store *) $3;
+        s->type = ast_word_in_expression;
+        s->token_index = TheIndex;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = word;
+        s->content[0]->topic = s;
+        s->content[1] = alphabet;
+        s->content[1]->topic = s;
+        $$ = s;
+    }
+    | word_literal EN_IN r_expression {
+        syntax_store *s = Syntax.push();
+        syntax_store *word = (syntax_store *) $1;
+        syntax_store *alphabet = (syntax_store *) $3;
+        s->type = ast_word_in_expression;
+        s->token_index = TheIndex;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = word;
+        s->content[0]->topic = s;
+        s->content[1] = alphabet;
+        s->content[1]->topic = s;
         $$ = s;
     }
     ;

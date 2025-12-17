@@ -1,4 +1,5 @@
 #include "context.h"
+#include "codepoint.h"
 
 #define PROGRAM_CONTEXT_SIZE 64
 
@@ -466,6 +467,81 @@ void _compute_set_operation(
            left_mask, op_name, right_mask, result_mask);
 }
 
+/* Validate word_in_expression: check that every letter in the word
+   exists in the alphabet.
+   P = "abc" in A checks that a, b, c are all letters of A. */
+bool _validate_word_in_expression(
+    program_context *context,
+    syntax_store    *expr) {
+
+    if (expr == NULL || expr->type != ast_word_in_expression) return true;
+    if (expr->size < 2) return false;
+
+    syntax_store *word_node = expr->content[0];      /* word_literal */
+    syntax_store *alphabet_expr = expr->content[1];  /* r_expression (alphabet) */
+
+    if (word_node == NULL || word_node->type != ast_word_literal) {
+        printf("Error: word_in_expression missing word literal.\n");
+        return false;
+    }
+
+    /* Get the word string (includes quotes) */
+    lexical_store *word_lex = Lex.store(word_node->token_index);
+    uint8_t *word_begin = word_lex->begin + 1;  /* skip opening quote */
+    uint8_t *word_end = word_lex->end - 1;      /* skip closing quote */
+    size_t word_len = word_end - word_begin;
+
+    /* Get the alphabet's mask */
+    uint64_t alphabet_mask = _compute_expression_mask(context, alphabet_expr);
+
+    printf("Word validation: \"");
+    for (uint8_t *p = word_begin; p < word_end; ) {
+        int cp_len = utf8_code_point_length(*p);
+        printf("%.*s", cp_len, p);
+        p += cp_len;
+    }
+    printf("\" in alphabet (mask 0x%llx)\n", alphabet_mask);
+
+    /* Check each letter in the word against the context's letters */
+    bool valid = true;
+    uint8_t *p = word_begin;
+    while (p < word_end) {
+        int cp_len = utf8_code_point_length(*p);
+
+        /* Find this letter in the context's letters array */
+        bool found = false;
+        size_t letter_index = 0;
+        for (size_t i = 0; i < context->letters_count; ++i) {
+            lexical_store *letter = context->letters[i];
+            size_t letter_len = letter->end - letter->begin;
+            if ((size_t)cp_len == letter_len &&
+                memcmp(p, letter->begin, letter_len) == 0) {
+                found = true;
+                letter_index = i;
+                break;
+            }
+        }
+
+        if (!found) {
+            printf("  Error: letter '%.*s' not found in context.\n", cp_len, p);
+            valid = false;
+        } else {
+            /* Check if this letter is in the alphabet */
+            if (letter_index < 64 && !(alphabet_mask & (1ULL << letter_index))) {
+                printf("  Error: letter '%.*s' (index %zu) not in alphabet.\n",
+                       cp_len, p, letter_index);
+                valid = false;
+            } else {
+                printf("  Letter '%.*s' (index %zu) OK.\n", cp_len, p, letter_index);
+            }
+        }
+
+        p += cp_len;
+    }
+
+    return valid;
+}
+
 /* Validate all expressions in a context. */
 void _validate_context_expressions(program_context *context) {
     syntax_store *tree = Syntax.tree();
@@ -481,6 +557,9 @@ void _validate_context_expressions(program_context *context) {
                  current->type == ast_intersect_expression ||
                  current->type == ast_difference_expression) {
             _compute_set_operation(context, current);
+        }
+        else if (current->type == ast_word_in_expression) {
+            _validate_word_in_expression(context, current);
         }
     }
 }

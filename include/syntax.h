@@ -29,7 +29,9 @@ typedef enum {
     ast_import_statement,
     ast_alphabet_body,
     ast_letters,
-    ast_letter
+    ast_letter,
+    ast_word_literal,        // "abc" - a concrete word
+    ast_word_in_expression   // "abc" in A - word validated against alphabet
 } syntax_store_type;
 
 typedef struct {
