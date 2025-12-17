@@ -286,6 +286,96 @@ alphabet_literal *_find_alphabet_literal_for_syntax(
     return NULL;
 }
 
+/* Compare two variable names by their lexical tokens. */
+static bool _variables_match(syntax_store *var1, syntax_store *var2) {
+    if (var1 == NULL || var2 == NULL) return false;
+    if (var1->type != ast_variable || var2->type != ast_variable) return false;
+
+    lexical_store *lex1 = Lex.store(var1->token_index);
+    lexical_store *lex2 = Lex.store(var2->token_index);
+
+    size_t size1 = lex1->end - lex1->begin;
+    size_t size2 = lex2->end - lex2->begin;
+
+    if (size1 != size2) return false;
+    return memcmp(lex1->begin, lex2->begin, size1) == 0;
+}
+
+/* Find the r_expression assigned to a variable by searching the AST.
+   Searches for ast_assignment_statement nodes where content[0] matches
+   the variable name. Returns the r_expression (content[1]) if found. */
+syntax_store *_find_variable_assignment(syntax_store *var) {
+    if (var == NULL || var->type != ast_variable) return NULL;
+
+    syntax_store *tree = Syntax.tree();
+
+    for (size_t i = 0; i < Syntax.info->count; ++i) {
+        syntax_store *node = tree - i;
+        if (node == NULL) continue;
+
+        if (node->type == ast_assignment_statement && node->size >= 2) {
+            /* content[0] is l_expression (variable), content[1] is r_expression */
+            syntax_store *l_expr = node->content[0];
+
+            /* l_expression wraps variable, check if it matches */
+            if (l_expr != NULL && _variables_match(l_expr, var)) {
+                return node->content[1];
+            }
+        }
+    }
+    return NULL;
+}
+
+/* Lazily compute the letter mask for any r_expression.
+   This supports nested expressions like: A extends B union C */
+uint64_t _compute_expression_mask(
+    program_context *context,
+    syntax_store    *expr) {
+
+    if (expr == NULL) return 0;
+
+    /* Base case: alphabet literal */
+    if (expr->type == ast_alphabet_body) {
+        alphabet_literal *alph = _find_alphabet_literal_for_syntax(context, expr);
+        return alph ? alph->letter_mask : 0;
+    }
+
+    /* Binary operations: recursively compute both sides */
+    if (expr->type == ast_union_expression) {
+        uint64_t left = _compute_expression_mask(context, expr->content[0]);
+        uint64_t right = _compute_expression_mask(context, expr->content[1]);
+        return left | right;
+    }
+
+    if (expr->type == ast_intersect_expression) {
+        uint64_t left = _compute_expression_mask(context, expr->content[0]);
+        uint64_t right = _compute_expression_mask(context, expr->content[1]);
+        return left & right;
+    }
+
+    if (expr->type == ast_difference_expression) {
+        uint64_t left = _compute_expression_mask(context, expr->content[0]);
+        uint64_t right = _compute_expression_mask(context, expr->content[1]);
+        return left & ~right;
+    }
+
+    /* Extends expression: returns the left operand's mask after validation */
+    if (expr->type == ast_extends_expression) {
+        return _compute_expression_mask(context, expr->content[0]);
+    }
+
+    /* Variable lookup: find the variable's assigned r_expression */
+    if (expr->type == ast_variable) {
+        syntax_store *assigned = _find_variable_assignment(expr);
+        if (assigned != NULL) {
+            return _compute_expression_mask(context, assigned);
+        }
+        return 0;
+    }
+
+    return 0;
+}
+
 /* Recursively get the alphabet_literal for an r_expression.
    For binary expressions, returns the left operand's alphabet. */
 alphabet_literal *_get_alphabet_for_expression(
@@ -308,7 +398,8 @@ alphabet_literal *_get_alphabet_for_expression(
 }
 
 /* Validate extends expressions. B ⊂ A checks that B contains all letters of A.
-   Validation: (A.mask & B.mask) == A.mask */
+   Validation: (A.mask & B.mask) == A.mask
+   Uses lazy mask computation to support nested expressions like: A extends B union C */
 bool _validate_extends_expression(
     program_context *context,
     syntax_store    *expr) {
@@ -318,21 +409,14 @@ bool _validate_extends_expression(
     syntax_store *left_expr = expr->content[0];   /* B (the superset) */
     syntax_store *right_expr = expr->content[1];  /* A (the subset) */
 
-    alphabet_literal *left_alph = _get_alphabet_for_expression(context, left_expr);
-    alphabet_literal *right_alph = _get_alphabet_for_expression(context, right_expr);
-
-    if (left_alph == NULL || right_alph == NULL) {
-        printf("Error: extends expression operands must be alphabets.\n");
-        return false;
-    }
-
-    uint64_t left_mask = left_alph->letter_mask;
-    uint64_t right_mask = right_alph->letter_mask;
+    /* Use lazy computation for both sides */
+    uint64_t left_mask = _compute_expression_mask(context, left_expr);
+    uint64_t right_mask = _compute_expression_mask(context, right_expr);
 
     /* Check if right (A) is a subset of left (B): (A & B) == A */
     if ((right_mask & left_mask) != right_mask) {
         printf("Error: alphabet extension validation failed.\n");
-        printf("       Left alphabet (mask 0x%llx) does not contain all letters of right alphabet (mask 0x%llx).\n",
+        printf("       Left expression (mask 0x%llx) does not contain all letters of right expression (mask 0x%llx).\n",
                left_mask, right_mask);
         return false;
     }
@@ -341,10 +425,11 @@ bool _validate_extends_expression(
     return true;
 }
 
-/* Compute and print set operation results.
+/* Compute and print set operation results using lazy evaluation.
    Union: A ∪ B = A.mask | B.mask
    Intersection: A ∩ B = A.mask & B.mask
-   Difference: A \ B = A.mask & ~B.mask */
+   Difference: A \ B = A.mask & ~B.mask
+   Supports nested expressions like: (A union B) intersect C */
 void _compute_set_operation(
     program_context *context,
     syntax_store    *expr) {
@@ -354,16 +439,9 @@ void _compute_set_operation(
     syntax_store *left_expr = expr->content[0];
     syntax_store *right_expr = expr->content[1];
 
-    alphabet_literal *left_alph = _get_alphabet_for_expression(context, left_expr);
-    alphabet_literal *right_alph = _get_alphabet_for_expression(context, right_expr);
-
-    if (left_alph == NULL || right_alph == NULL) {
-        printf("Error: set operation operands must be alphabets.\n");
-        return;
-    }
-
-    uint64_t left_mask = left_alph->letter_mask;
-    uint64_t right_mask = right_alph->letter_mask;
+    /* Use lazy computation for both sides */
+    uint64_t left_mask = _compute_expression_mask(context, left_expr);
+    uint64_t right_mask = _compute_expression_mask(context, right_expr);
     uint64_t result_mask = 0;
     const char *op_name = "";
 
