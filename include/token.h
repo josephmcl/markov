@@ -24,6 +24,8 @@ typedef enum {
     TOKEN_NOT              = MULTI_BYTE_TOKENS + 1, // ¬  [1.2.5]
     TOKEN_EXTENDS          = MULTI_BYTE_TOKENS + 2, // ⊂  [1.2.7]
     TOKEN_DOUBLE_COLON     = MULTI_BYTE_TOKENS + 3, // :: [Extended]
+    TOKEN_UNION            = MULTI_BYTE_TOKENS + 4, // ∪  [1.2.7]
+    TOKEN_INTERSECT        = MULTI_BYTE_TOKENS + 5, // ∩  [1.2.7]
 
     TOKEN_EQUAL            = SINGLE_BYTE_TOKENS,      // = [1.2.6]
     TOKEN_COMMA            = SINGLE_BYTE_TOKENS + 1,  // , [1.2.6]
@@ -35,16 +37,20 @@ typedef enum {
     TOKEN_RANGLE           = SINGLE_BYTE_TOKENS + 7,  // > [Extended]
     TOKEN_LBRACKET         = SINGLE_BYTE_TOKENS + 8,  // [ [Extended]
     TOKEN_RBRACKET         = SINGLE_BYTE_TOKENS + 9,  // ] [Extended]
-    TOKEN_ATSIGN           = SINGLE_BYTE_TOKENS + 10, // ] [Extended]
+    TOKEN_ATSIGN           = SINGLE_BYTE_TOKENS + 10, // @ [Extended]
+    TOKEN_BACKSLASH        = SINGLE_BYTE_TOKENS + 11, // \ [1.2.7] difference
 
-    TOKEN_EN_IN            = KEYWORD_TOKENS,      // in [1.2.5]
-    TOKEN_EN_NOT           = KEYWORD_TOKENS + 1,  // not [1.2.6]
-    TOKEN_EN_EXTENDS       = KEYWORD_TOKENS + 2,  // extends [1.2.6]
-    TOKEN_EN_MODULE        = KEYWORD_TOKENS + 3,  // module [Extended]
-    TOKEN_EN_IMPORT        = KEYWORD_TOKENS + 4,  // import [Extended]
-    TOKEN_EN_EXPORT        = KEYWORD_TOKENS + 5,  // export [Extended]
-
-
+    // NOTE: Order must match keyword_tokens array in token.c
+    // Longer keywords with shared prefixes must come first (e.g., intersect before in)
+    TOKEN_EN_INTERSECT     = KEYWORD_TOKENS,      // intersect [1.2.7]
+    TOKEN_EN_IN            = KEYWORD_TOKENS + 1,  // in [1.2.5]
+    TOKEN_EN_NOT           = KEYWORD_TOKENS + 2,  // not [1.2.6]
+    TOKEN_EN_EXTENDS       = KEYWORD_TOKENS + 3,  // extends [1.2.6]
+    TOKEN_EN_MODULE        = KEYWORD_TOKENS + 4,  // module [Extended]
+    TOKEN_EN_IMPORT        = KEYWORD_TOKENS + 5,  // import [Extended]
+    TOKEN_EN_EXPORT        = KEYWORD_TOKENS + 6,  // export [Extended]
+    TOKEN_EN_UNION         = KEYWORD_TOKENS + 7,  // union [1.2.7]
+    TOKEN_EN_DIFFERENCE    = KEYWORD_TOKENS + 8,  // difference [1.2.7]
 
 } lexical_token;
 

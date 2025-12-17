@@ -29,8 +29,12 @@ typedef struct aliteral {
    /* A binary format of the letters. 1 marks inclucsion in this 
       alphabet. */
    
-   size_t            letters_bytes_count; 
+   size_t            letters_bytes_count;
    uint8_t         **letters_bytes;
+
+   /* Bitmask representing which letters from the context are in this
+      alphabet. Bit i is set if context->letters[i] is in this alphabet. */
+   uint64_t          letter_mask;
 
 } alphabet_literal;
 

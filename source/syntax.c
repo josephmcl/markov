@@ -180,6 +180,9 @@ void _print_node_string(syntax_store_type type) {
     case ast_l_expression:                  printf("L Expression"); return;
     case ast_r_expression:                  printf("R Expression"); return;
     case ast_extends_expression:            printf("Extends Expression"); return;
+    case ast_union_expression:              printf("Union Expression"); return;
+    case ast_intersect_expression:          printf("Intersect Expression"); return;
+    case ast_difference_expression:         printf("Difference Expression"); return;
     case ast_variable:                      printf("Variable"); return;
     case ast_assignment_statement:          printf("Assignment"); return;
     case ast_import_statement:              printf("Import"); return;

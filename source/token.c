@@ -90,14 +90,16 @@ uint8_t *string_literal(uint8_t *head, uint8_t *end) {
     return rv;
 }
 
-#define MB_TOKS 4
+#define MB_TOKS 6
 #define MB_TOKS_OFFSET 4
 
 static uint8_t multi_byte_tokens[MB_TOKS * MB_TOKS_OFFSET] = {
     "∈\t"
     "¬\t "
     "⊂\t"
-    "::\t"
+    "::\t "
+    "∪\t"
+    "∩\t"
 };
 
 uint16_t multi_byte_token(uint8_t *s, uint8_t *end) {
@@ -120,16 +122,19 @@ uint16_t multi_byte_token(uint8_t *s, uint8_t *end) {
     return 0;
 }
 
-#define KY_TOKS 6
-#define KY_TOKS_OFFSET 8
+#define KY_TOKS 9
+#define KY_TOKS_OFFSET 12
 
-static uint8_t keyword_tokens[KY_TOKS * KY_TOKS_OFFSET] = { //45
-    "in\t     "
-    "not\t    "
-    "extends\t"
-    "module\t "
-    "import\t "
-    "export\t "
+static uint8_t keyword_tokens[KY_TOKS * KY_TOKS_OFFSET] = {
+    "intersect\t  "
+    "in\t         "
+    "not\t        "
+    "extends\t    "
+    "module\t     "
+    "import\t     "
+    "export\t     "
+    "union\t      "
+    "difference\t "
 };
 
 uint16_t keyword_token(uint8_t *s, uint8_t *end) {
@@ -163,6 +168,7 @@ lexical_token single_byte_token(uint8_t c) {
     case '<': return TOKEN_LANGLE;
     case '>': return TOKEN_RANGLE;
     case '@': return TOKEN_ATSIGN;
+    case '\\': return TOKEN_BACKSLASH;
     default: return TOKEN_UNKNOWN;
     }
 }

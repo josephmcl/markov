@@ -219,13 +219,191 @@ syntax_store *update_program_context(syntax_store *store) {
         return NULL; }
 }
 
+/* Find the index of a letter in the context's letters array.
+   Returns the index if found, or context->letters_count if not found. */
+size_t _context_find_letter_index(
+    program_context *context,
+    lexical_store   *letter) {
+
+    lexical_store *current;
+    size_t size = letter->end - letter->begin;
+
+    for (size_t i = 0; i < context->letters_count; ++i) {
+        current = context->letters[i];
+        size_t current_size = current->end - current->begin;
+        if (size == current_size &&
+            memcmp(letter->begin, current->begin, size) == 0) {
+            return i;
+        }
+    }
+    return context->letters_count;
+}
+
 void update_program_context_letter_data(program_context *context) {
-    
+
     alphabet_literal *alphabet;
+    syntax_store *alphabet_body, *letters, *letter_node;
+    lexical_store *letter;
+    size_t letter_index;
+
     for (size_t i = 0; i < context->alphabet_literals_count; ++i) {
         alphabet = context->alphabet_literals[i];
+        alphabet->letter_mask = 0;
 
-        //alphabet_literal =
+        /* alphabet->store is the ast_alphabet_body node */
+        alphabet_body = alphabet->store;
+        if (alphabet_body == NULL || alphabet_body->size == 0) continue;
+
+        /* content[0] is the ast_letters node */
+        letters = alphabet_body->content[0];
+        if (letters == NULL) continue;
+
+        /* Iterate through each letter in this alphabet */
+        for (size_t j = 0; j < letters->size; ++j) {
+            letter_node = letters->content[j];
+            if (letter_node == NULL) continue;
+
+            letter = Lex.store(letter_node->token_index);
+            letter_index = _context_find_letter_index(context, letter);
+
+            if (letter_index < context->letters_count && letter_index < 64) {
+                alphabet->letter_mask |= (1ULL << letter_index);
+            }
+        }
+    }
+}
+
+/* Find the alphabet_literal associated with an ast_alphabet_body node. */
+alphabet_literal *_find_alphabet_literal_for_syntax(
+    program_context *context,
+    syntax_store    *syntax) {
+
+    for (size_t i = 0; i < context->alphabet_literals_count; ++i) {
+        if (context->alphabet_literals[i]->store == syntax) {
+            return context->alphabet_literals[i];
+        }
+    }
+    return NULL;
+}
+
+/* Recursively get the alphabet_literal for an r_expression.
+   For binary expressions, returns the left operand's alphabet. */
+alphabet_literal *_get_alphabet_for_expression(
+    program_context *context,
+    syntax_store    *expr) {
+
+    if (expr == NULL) return NULL;
+
+    if (expr->type == ast_alphabet_body) {
+        return _find_alphabet_literal_for_syntax(context, expr);
+    }
+    else if (expr->type == ast_extends_expression ||
+             expr->type == ast_union_expression ||
+             expr->type == ast_intersect_expression ||
+             expr->type == ast_difference_expression) {
+        /* For binary ops, return the left operand's alphabet */
+        return _get_alphabet_for_expression(context, expr->content[0]);
+    }
+    return NULL;
+}
+
+/* Validate extends expressions. B ⊂ A checks that B contains all letters of A.
+   Validation: (A.mask & B.mask) == A.mask */
+bool _validate_extends_expression(
+    program_context *context,
+    syntax_store    *expr) {
+
+    if (expr == NULL || expr->type != ast_extends_expression) return true;
+
+    syntax_store *left_expr = expr->content[0];   /* B (the superset) */
+    syntax_store *right_expr = expr->content[1];  /* A (the subset) */
+
+    alphabet_literal *left_alph = _get_alphabet_for_expression(context, left_expr);
+    alphabet_literal *right_alph = _get_alphabet_for_expression(context, right_expr);
+
+    if (left_alph == NULL || right_alph == NULL) {
+        printf("Error: extends expression operands must be alphabets.\n");
+        return false;
+    }
+
+    uint64_t left_mask = left_alph->letter_mask;
+    uint64_t right_mask = right_alph->letter_mask;
+
+    /* Check if right (A) is a subset of left (B): (A & B) == A */
+    if ((right_mask & left_mask) != right_mask) {
+        printf("Error: alphabet extension validation failed.\n");
+        printf("       Left alphabet (mask 0x%llx) does not contain all letters of right alphabet (mask 0x%llx).\n",
+               left_mask, right_mask);
+        return false;
+    }
+
+    printf("Extends validation passed: 0x%llx ⊃ 0x%llx\n", left_mask, right_mask);
+    return true;
+}
+
+/* Compute and print set operation results.
+   Union: A ∪ B = A.mask | B.mask
+   Intersection: A ∩ B = A.mask & B.mask
+   Difference: A \ B = A.mask & ~B.mask */
+void _compute_set_operation(
+    program_context *context,
+    syntax_store    *expr) {
+
+    if (expr == NULL) return;
+
+    syntax_store *left_expr = expr->content[0];
+    syntax_store *right_expr = expr->content[1];
+
+    alphabet_literal *left_alph = _get_alphabet_for_expression(context, left_expr);
+    alphabet_literal *right_alph = _get_alphabet_for_expression(context, right_expr);
+
+    if (left_alph == NULL || right_alph == NULL) {
+        printf("Error: set operation operands must be alphabets.\n");
+        return;
+    }
+
+    uint64_t left_mask = left_alph->letter_mask;
+    uint64_t right_mask = right_alph->letter_mask;
+    uint64_t result_mask = 0;
+    const char *op_name = "";
+
+    switch (expr->type) {
+    case ast_union_expression:
+        result_mask = left_mask | right_mask;
+        op_name = "∪";
+        break;
+    case ast_intersect_expression:
+        result_mask = left_mask & right_mask;
+        op_name = "∩";
+        break;
+    case ast_difference_expression:
+        result_mask = left_mask & ~right_mask;
+        op_name = "\\";
+        break;
+    default:
+        return;
+    }
+
+    printf("Set operation: 0x%llx %s 0x%llx = 0x%llx\n",
+           left_mask, op_name, right_mask, result_mask);
+}
+
+/* Validate all expressions in a context. */
+void _validate_context_expressions(program_context *context) {
+    syntax_store *tree = Syntax.tree();
+
+    for (size_t i = 0; i < Syntax.info->count; ++i) {
+        syntax_store *current = tree - i;
+        if (current == NULL) continue;
+
+        if (current->type == ast_extends_expression) {
+            _validate_extends_expression(context, current);
+        }
+        else if (current->type == ast_union_expression ||
+                 current->type == ast_intersect_expression ||
+                 current->type == ast_difference_expression) {
+            _compute_set_operation(context, current);
+        }
     }
 }
 
@@ -235,7 +413,7 @@ void validate_program_context (void) {
     syntax_store *tree, *current;
     program_context *topic = NULL;
     tree = Syntax.tree();
-    
+
     for (size_t i = 0; i < Syntax.info->count; ++i) {
         current = tree - i;
         if (current != NULL) {
@@ -245,9 +423,12 @@ void validate_program_context (void) {
     }
 
     for (size_t i = 0; i < TheInfo.count; ++i) {
-
         update_program_context_letter_data(context_root() + i);
-        
+    }
+
+    /* Validate expressions after letter masks are computed */
+    for (size_t i = 0; i < TheInfo.count; ++i) {
+        _validate_context_expressions(context_root() + i);
     }
 
 
@@ -300,6 +481,10 @@ void validate_program_context (void) {
         }
 
         printf("| Alphabets (%lu)\n", TheContext[i].alphabet_literals_count);
+        for (size_t j = 0; j < TheContext[i].alphabet_literals_count; ++j) {
+            alphabet_literal *alph = TheContext[i].alphabet_literals[j];
+            printf("| | mask (0x%016llx)\n", alph->letter_mask);
+        }
 
         printf("| letters   (%lu)\n", TheContext[i].letters_count);
         for (size_t j = 0; j < TheContext[i].letters_count; ++j) {

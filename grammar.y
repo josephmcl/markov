@@ -68,12 +68,19 @@
 %token RBRACKET
 %token ATSIGN
 
-%token EN_IN          
-%token EN_NOT          
-%left EN_EXTENDS      
-%token EN_MODULE          
-%token EN_IMPORT      
+%token EN_IN
+%token EN_NOT
+%left EN_EXTENDS
+%token EN_MODULE
+%token EN_IMPORT
 %token EN_EXPORT
+%left EN_UNION
+%left EN_INTERSECT
+%left EN_DIFFERENCE
+
+%left UNION
+%left INTERSECT
+%left BACKSLASH
 
 %type<yuck> program
 %type<yuck> statements
@@ -90,6 +97,9 @@
 %type<yuck> variable
 %type<yuck> r_expression
 %type<yuck> extends_expression
+%type<yuck> union_expression
+%type<yuck> intersect_expression
+%type<yuck> difference_expression
 %type<yuck> alphabet_body
 %type<yuck> u_letters
 %type<yuck> letters
@@ -247,6 +257,9 @@ variable
 r_expression
     : alphabet_body { $$ = $1; }
     | extends_expression { $$ = $1; }
+    | union_expression { $$ = $1; }
+    | intersect_expression { $$ = $1; }
+    | difference_expression { $$ = $1; }
     | variable { $$ = $1; }
     ;
 extends_expression
@@ -264,7 +277,98 @@ extends_expression
         s->content[1]->topic = s;
         $$ = s;
     }
-    | r_expression EN_EXTENDS r_expression { $$ = $1; }
+    | r_expression EN_EXTENDS r_expression {
+        syntax_store *s = Syntax.push();
+        syntax_store *r_expression_l = (syntax_store *) $1;
+        syntax_store *r_expression_r = (syntax_store *) $3;
+        s->type = ast_extends_expression;
+        s->token_index = TheIndex;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = (syntax_store *) r_expression_l;
+        s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) r_expression_r;
+        s->content[1]->topic = s;
+        $$ = s;
+    }
+    ;
+union_expression
+    : r_expression UNION r_expression {
+        syntax_store *s = Syntax.push();
+        s->type = ast_union_expression;
+        s->token_index = TheIndex;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = (syntax_store *) $1;
+        s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $3;
+        s->content[1]->topic = s;
+        $$ = s;
+    }
+    | r_expression EN_UNION r_expression {
+        syntax_store *s = Syntax.push();
+        s->type = ast_union_expression;
+        s->token_index = TheIndex;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = (syntax_store *) $1;
+        s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $3;
+        s->content[1]->topic = s;
+        $$ = s;
+    }
+    ;
+intersect_expression
+    : r_expression INTERSECT r_expression {
+        syntax_store *s = Syntax.push();
+        s->type = ast_intersect_expression;
+        s->token_index = TheIndex;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = (syntax_store *) $1;
+        s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $3;
+        s->content[1]->topic = s;
+        $$ = s;
+    }
+    | r_expression EN_INTERSECT r_expression {
+        syntax_store *s = Syntax.push();
+        s->type = ast_intersect_expression;
+        s->token_index = TheIndex;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = (syntax_store *) $1;
+        s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $3;
+        s->content[1]->topic = s;
+        $$ = s;
+    }
+    ;
+difference_expression
+    : r_expression BACKSLASH r_expression {
+        syntax_store *s = Syntax.push();
+        s->type = ast_difference_expression;
+        s->token_index = TheIndex;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = (syntax_store *) $1;
+        s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $3;
+        s->content[1]->topic = s;
+        $$ = s;
+    }
+    | r_expression EN_DIFFERENCE r_expression {
+        syntax_store *s = Syntax.push();
+        s->type = ast_difference_expression;
+        s->token_index = TheIndex;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = (syntax_store *) $1;
+        s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $3;
+        s->content[1]->topic = s;
+        $$ = s;
+    }
     ;
 alphabet_body
     : LCURL u_letters RCURL { 
