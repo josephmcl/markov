@@ -191,6 +191,8 @@ void _print_node_string(syntax_store_type type) {
     case ast_letter:                        printf("Letter"); return;
     case ast_word_literal:                  printf("Word Literal"); return;
     case ast_word_in_expression:            printf("Word In Expression"); return;
+    case ast_abstract_size:                 printf("Abstract Size"); return;
+    case ast_abstract_alphabet:             printf("Abstract Alphabet"); return;
     default:                                printf("UNKNOWN"); return;
     }
 }

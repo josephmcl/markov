@@ -31,7 +31,9 @@ typedef enum {
     ast_letters,
     ast_letter,
     ast_word_literal,        // "abc" - a concrete word
-    ast_word_in_expression   // "abc" in A - word validated against alphabet
+    ast_word_in_expression,  // "abc" in A - word validated against alphabet
+    ast_abstract_size,       // [N] - abstract alphabet with N letters
+    ast_abstract_alphabet,   // [N] + {concrete} - abstract + concrete combination
 } syntax_store_type;
 
 typedef struct {

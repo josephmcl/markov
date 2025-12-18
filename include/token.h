@@ -20,7 +20,8 @@ typedef enum {
     TOKEN_LINE_COMMENT     = 3,
     TOKEN_IDENTIFIER       = 4,
     TOKEN_STRING_LITERAL   = 5,  // "..." or '...'
-    
+    TOKEN_NUMBER           = 6,  // integer literal for abstract alphabet size
+
     TOKEN_IN               = MULTI_BYTE_TOKENS,     // ∈  [1.2.5]
     TOKEN_NOT              = MULTI_BYTE_TOKENS + 1, // ¬  [1.2.5]
     TOKEN_EXTENDS          = MULTI_BYTE_TOKENS + 2, // ⊂  [1.2.7]
@@ -40,6 +41,7 @@ typedef enum {
     TOKEN_RBRACKET         = SINGLE_BYTE_TOKENS + 9,  // ] [Extended]
     TOKEN_ATSIGN           = SINGLE_BYTE_TOKENS + 10, // @ [Extended]
     TOKEN_BACKSLASH        = SINGLE_BYTE_TOKENS + 11, // \ [1.2.7] difference
+    TOKEN_PLUS             = SINGLE_BYTE_TOKENS + 12, // + [abstract alphabet combination]
 
     // NOTE: Order must match keyword_tokens array in token.c
     // Longer keywords with shared prefixes must come first (e.g., intersect before in)
@@ -82,5 +84,6 @@ uint8_t *float_literal(uint8_t *head);
 uint8_t *rational_literal(uint8_t *head, uint8_t *end);
 uint8_t *line_comment(uint8_t *head, uint8_t *end);
 uint8_t *string_literal(uint8_t *head, uint8_t *end);
+uint8_t *number_literal(uint8_t *head);
 
 int is_escape(uint8_t c);

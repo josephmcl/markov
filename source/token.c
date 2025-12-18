@@ -5,7 +5,9 @@ const char *token_names[] = {
     "ESCAPE",
     "LINE_END",
     "LINE_COMMENT",
-    "IDENTIFIER"
+    "IDENTIFIER",
+    "STRING_LITERAL",
+    "NUMBER"
 };
 
 /*static*/ int ustrncmp(const uint8_t *s1, const uint8_t *s2, size_t n) {
@@ -167,8 +169,20 @@ lexical_token single_byte_token(uint8_t c) {
     case '.': return TOKEN_PERIOD;
     case '<': return TOKEN_LANGLE;
     case '>': return TOKEN_RANGLE;
+    case '[': return TOKEN_LBRACKET;
+    case ']': return TOKEN_RBRACKET;
     case '@': return TOKEN_ATSIGN;
     case '\\': return TOKEN_BACKSLASH;
+    case '+': return TOKEN_PLUS;
     default: return TOKEN_UNKNOWN;
     }
+}
+
+/* Match an integer literal (sequence of digits). Returns head if no match. */
+uint8_t *number_literal(uint8_t *head) {
+    uint8_t *rv = head;
+    while (*rv >= '0' && *rv <= '9') {
+        rv += 1;
+    }
+    return rv;
 }

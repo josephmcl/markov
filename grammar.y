@@ -51,7 +51,9 @@
 
 %token IDENTIFIER
 %token STRING_LITERAL
+%token NUMBER
 
+%token PLUS
 %token IN     
 %token NOT 
 %left EXTENDS  
@@ -107,8 +109,11 @@
 %type<yuck> letter
 %type<yuck> word_literal
 %type<yuck> word_in_expression
+%type<yuck> abstract_size
+%type<yuck> abstract_alphabet
 %type<yuck> IDENTIFIER
 %type<yuck> STRING_LITERAL
+%type<yuck> NUMBER
 
 %%
 
@@ -266,6 +271,8 @@ r_expression
     | difference_expression { $$ = $1; }
     | word_literal { $$ = $1; }
     | word_in_expression { $$ = $1; }
+    | abstract_size { $$ = $1; }
+    | abstract_alphabet { $$ = $1; }
     | variable { $$ = $1; }
     ;
 extends_expression
@@ -461,6 +468,30 @@ word_in_expression
         s->content[0] = word;
         s->content[0]->topic = s;
         s->content[1] = alphabet;
+        s->content[1]->topic = s;
+        $$ = s;
+    }
+    ;
+abstract_size
+    : LBRACKET NUMBER RBRACKET {
+        syntax_store *s = Syntax.push();
+        s->type = ast_abstract_size;
+        s->token_index = TheIndex - 1;  /* token index of NUMBER */
+        $$ = s;
+    }
+    ;
+abstract_alphabet
+    : abstract_size PLUS alphabet_body {
+        syntax_store *s = Syntax.push();
+        syntax_store *abstract_part = (syntax_store *) $1;
+        syntax_store *concrete_part = (syntax_store *) $3;
+        s->type = ast_abstract_alphabet;
+        s->token_index = TheIndex;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = abstract_part;
+        s->content[0]->topic = s;
+        s->content[1] = concrete_part;
         s->content[1]->topic = s;
         $$ = s;
     }

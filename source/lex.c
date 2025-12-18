@@ -105,10 +105,17 @@ lexical_store lexer_next() {
         rv.end = offset;
         rv.token = TOKEN_STRING_LITERAL;
     }
-    /* IDENTIFIER */
+    /* IDENTIFIER or NUMBER - identifier takes priority for mixed alphanumeric */
     else if ((offset = identifier(head)) != head) {
-        rv.end = offset;
-        rv.token = TOKEN_IDENTIFIER;
+        /* Check if it's a pure number (identifier matches exactly number_literal) */
+        uint8_t *num_end = number_literal(head);
+        if (num_end == offset) {
+            rv.end = offset;
+            rv.token = TOKEN_NUMBER;
+        } else {
+            rv.end = offset;
+            rv.token = TOKEN_IDENTIFIER;
+        }
     }
     else if (*head == '\\') {
         rv.end = head + 1;
@@ -352,6 +359,8 @@ int lexer_get_token_bison_compat(size_t index) {
         case TOKEN_EN_UNION: return EN_UNION;
         case TOKEN_EN_INTERSECT: return EN_INTERSECT;
         case TOKEN_EN_DIFFERENCE: return EN_DIFFERENCE;
+        case TOKEN_PLUS: return PLUS;
+        case TOKEN_NUMBER: return NUMBER;
         default: {
             printf("stray token, %d\n", token);
             return TOKEN_UNSUPPORTED_BY_PARSER;
