@@ -2,7 +2,7 @@
 #include "syntax.h"
 #include "context.h"
 #include "data.h"
-//#include "webassembly.h"
+#include "webassembly.h"
 
 int main(int argc, char **argv) {
 
@@ -38,9 +38,9 @@ int main(int argc, char **argv) {
 
     printf("Context validated.\n");
 
-    Data.generate(&Lex, &Syntax);    
+    Data.generate(&Lex, &Syntax);
 
-    //WebAssembly.generate(&Data);
+    WebAssembly.generate(&Data);
 
     /* Free all of the memory we used. */
     Syntax.free();
