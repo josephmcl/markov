@@ -498,6 +498,17 @@ void wasm_write_algorithm(algorithm_definition *alg, size_t index) {
         algorithm_rule *rule = alg->rules[r];
         if (rule == NULL) continue;
 
+        /* Skip remaining rules if we already matched */
+        if (r > 0) {
+            Wat.newline_fn();
+            Wat.indent();
+            Wat.str(";; Skip if already matched");
+            Wat.newline_fn();
+            Wat.indent();
+            Wat.str("(br_if $apply_rules (local.get $matched))");
+            Wat.newline_fn();
+        }
+
         wasm_write_rule(rule, r + 1);
     }
 
