@@ -661,15 +661,17 @@ void wasm_write_helper_functions(void) {
 }
 
 void wasm_use_stdout(void) {
+    init_wat();
     Wat.file = stdout;
 }
 
 void wm_generate_s_statements(struct data *Data) {
     bool file_open = false;
+    bool using_stdout = (Wat.file == stdout);
 
     init_wat();
 
-    /* Build output filename */
+    /* Build output filename (only used when not using stdout) */
     char name[256] = "./bin/";
     strcat(name, (char *)Lex.file->name);
     strcat(name, ".wat");
@@ -683,7 +685,9 @@ void wm_generate_s_statements(struct data *Data) {
         file_open = true;
     }
 
-    printf("Generating WAT output: %s\n", name);
+    if (!using_stdout) {
+        printf("Generating WAT output: %s\n", name);
+    }
 
     /* Module header */
     Wat.str("(module");
@@ -712,7 +716,9 @@ void wm_generate_s_statements(struct data *Data) {
         Wat.file = NULL;
     }
 
-    printf("WAT generation complete.\n");
+    if (!using_stdout) {
+        printf("WAT generation complete.\n");
+    }
 }
 
 const struct webassembly WebAssembly = {
