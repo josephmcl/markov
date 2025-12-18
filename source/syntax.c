@@ -193,20 +193,26 @@ void _print_node_string(syntax_store_type type) {
     case ast_word_in_expression:            printf("Word In Expression"); return;
     case ast_abstract_size:                 printf("Abstract Size"); return;
     case ast_abstract_alphabet:             printf("Abstract Alphabet"); return;
+    case ast_algorithm:                     printf("Algorithm"); return;
+    case ast_algorithm_rules:               printf("Algorithm Rules"); return;
+    case ast_algorithm_rule:                printf("Rule"); return;
+    case ast_pattern:                       printf("Pattern"); return;
     default:                                printf("UNKNOWN"); return;
     }
 }
 
 void depth_print(syntax_store *s, size_t indent) {
 
-    for (size_t i = 0; i < indent; ++i) 
+    for (size_t i = 0; i < indent; ++i)
         printf("|  ");
     _print_node_string(s->type);
     printf("[%lu](%p)\n", s->size, (void *) s);
 
-    for (size_t i = 0; i < s->size; ++i) {
-        if (s->content[i] != NULL)
-            depth_print(s->content[i], indent + 1);
+    if (s->content != NULL) {
+        for (size_t i = 0; i < s->size; ++i) {
+            if (s->content[i] != NULL)
+                depth_print(s->content[i], indent + 1);
+        }
     }
 
 }

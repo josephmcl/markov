@@ -34,6 +34,11 @@ typedef enum {
     ast_word_in_expression,  // "abc" in A - word validated against alphabet
     ast_abstract_size,       // [N] - abstract alphabet with N letters
     ast_abstract_alphabet,   // [N] + {concrete} - abstract + concrete combination
+    // Algorithm types
+    ast_algorithm,           // A::B (C) { rules } - algorithm definition
+    ast_algorithm_rules,     // list of rules in algorithm body
+    ast_algorithm_rule,      // P -> Q or P -. (substitution rule)
+    ast_pattern,             // sequence of letters (left side of rule)
 } syntax_store_type;
 
 typedef struct {

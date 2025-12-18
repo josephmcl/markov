@@ -361,6 +361,10 @@ int lexer_get_token_bison_compat(size_t index) {
         case TOKEN_EN_DIFFERENCE: return EN_DIFFERENCE;
         case TOKEN_PLUS: return PLUS;
         case TOKEN_NUMBER: return NUMBER;
+        case TOKEN_ARROW: return ARROW;
+        case TOKEN_TERMINAL: return TERMINAL;
+        case TOKEN_LPAREN: return LPAREN;
+        case TOKEN_RPAREN: return RPAREN;
         default: {
             printf("stray token, %d\n", token);
             return TOKEN_UNSUPPORTED_BY_PARSER;

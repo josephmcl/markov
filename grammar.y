@@ -85,6 +85,11 @@
 %left INTERSECT
 %left BACKSLASH
 
+%token ARROW
+%token TERMINAL
+%token LPAREN
+%token RPAREN
+
 %type<yuck> program
 %type<yuck> statements
 %type<yuck> scope
@@ -111,6 +116,10 @@
 %type<yuck> word_in_expression
 %type<yuck> abstract_size
 %type<yuck> abstract_alphabet
+%type<yuck> algorithm
+%type<yuck> algorithm_rules
+%type<yuck> algorithm_rule
+%type<yuck> pattern
 %type<yuck> IDENTIFIER
 %type<yuck> STRING_LITERAL
 %type<yuck> NUMBER
@@ -194,12 +203,13 @@ statementz
         statementz->content[statementz->size - 1]->topic = statementz;
         $$ = statementz; }
     ;
-statement 
+statement
     : assignment_statement { $$ = $1; }
     | import_statement     { $$ = $1; }
     | r_expression         { $$ = $1; }
     | function             { $$ = $1; }
     | scope                { $$ = $1; }
+    | algorithm            { $$ = $1; }
     ;
 scope 
     : scope_export scope_module scope_name LCURL statements RCURL {
@@ -494,5 +504,89 @@ abstract_alphabet
         s->content[1] = concrete_part;
         s->content[1]->topic = s;
         $$ = s;
+    }
+    ;
+algorithm
+    : IDENTIFIER DOUBLE_COLON variable LPAREN IDENTIFIER RPAREN LCURL algorithm_rules RCURL {
+        /* A::B (C) { rules } */
+        syntax_store *s = Syntax.push();
+        syntax_store *rules = (syntax_store *) $8;
+        s->type = ast_algorithm;
+        s->token_index = TheIndex;
+        s->size = 1;
+        s->content = malloc(sizeof(syntax_store *));
+        s->content[0] = rules;
+        if (rules != NULL) rules->topic = s;
+        $$ = s;
+    }
+    ;
+algorithm_rules
+    : { $$ = NULL; }
+    | algorithm_rule {
+        syntax_store *s = Syntax.push();
+        s->type = ast_algorithm_rules;
+        s->size = 1;
+        s->content = malloc(sizeof(syntax_store *));
+        s->content[0] = (syntax_store *) $1;
+        s->content[0]->topic = s;
+        $$ = s;
+    }
+    | algorithm_rules SEMICOLON algorithm_rule {
+        syntax_store *rules = (syntax_store *) $1;
+        syntax_store *rule = (syntax_store *) $3;
+        rules->size += 1;
+        size_t bytes = rules->size * sizeof(syntax_store *);
+        rules->content = (syntax_store **) realloc(rules->content, bytes);
+        rules->content[rules->size - 1] = rule;
+        rules->content[rules->size - 1]->topic = rules;
+        $$ = rules;
+    }
+    ;
+algorithm_rule
+    : pattern ARROW pattern {
+        /* P -> Q (substitution rule) */
+        syntax_store *s = Syntax.push();
+        syntax_store *left = (syntax_store *) $1;
+        syntax_store *right = (syntax_store *) $3;
+        s->type = ast_algorithm_rule;
+        s->token_index = TheIndex;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = left;
+        s->content[0]->topic = s;
+        s->content[1] = right;
+        s->content[1]->topic = s;
+        $$ = s;
+    }
+    | pattern TERMINAL {
+        /* P -. (terminal rule) */
+        syntax_store *s = Syntax.push();
+        syntax_store *left = (syntax_store *) $1;
+        s->type = ast_algorithm_rule;
+        s->token_index = TheIndex;
+        s->size = 1;
+        s->content = malloc(sizeof(syntax_store *));
+        s->content[0] = left;
+        s->content[0]->topic = s;
+        $$ = s;
+    }
+    ;
+pattern
+    : IDENTIFIER {
+        /* Single letter/identifier pattern */
+        syntax_store *s = Syntax.push();
+        s->type = ast_pattern;
+        s->token_index = TheIndex;
+        s->size = 0;
+        s->content = NULL;
+        $$ = s;
+    }
+    | pattern IDENTIFIER {
+        /* Concatenated pattern: abc becomes pattern of a, b, c
+           NOTE: For now we just track the count. The pattern letters
+           can be reconstructed by walking backwards from token_index. */
+        syntax_store *pat = (syntax_store *) $1;
+        pat->size += 1;
+        $$ = pat;
     }
     ;
