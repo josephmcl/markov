@@ -11,6 +11,7 @@
 #include "context/letter.h"
 #include "context/variable.h"
 #include "context/alphabet_literal.h"
+#include "context/algorithm.h"
 
 struct context {
     void ( *validate) (void);

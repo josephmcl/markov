@@ -30,9 +30,12 @@
         } while (token == TOKEN_UNUSED_BY_PARSER);
 
         TheIndex = index - 1;
-        
+
+        /* Use yylloc.first_column to store the token index */
+        yylloc.first_column = (int) TheIndex;
+
         if (index >= Lex.info->count) {
-            index = 0; 
+            index = 0;
             return EOF;
         }
         else {
@@ -45,8 +48,11 @@
     }
 %}
 
+%locations
+
 %union {
     void *yuck;
+    size_t index;
 }
 
 %token IDENTIFIER
@@ -54,36 +60,33 @@
 %token NUMBER
 
 %token PLUS
-%token IN     
-%token NOT 
-%left EXTENDS  
-%token DOUBLE_COLON 
+%token NOT
+%token DOUBLE_COLON
 
-%token EQUAL 
-%token COMMA    
-%token LCURL      
-%token RCURL         
-%token SEMICOLON   
-%token PERIOD      
+%token EQUAL
+%token COMMA
+%token LCURL
+%token RCURL
+%token SEMICOLON
+%token PERIOD
 %token LANGLE
 %token RANGLE
 %token LBRACKET
 %token RBRACKET
 %token ATSIGN
 
-%token EN_IN
 %token EN_NOT
-%left EN_EXTENDS
 %token EN_MODULE
 %token EN_IMPORT
 %token EN_EXPORT
-%left EN_UNION
-%left EN_INTERSECT
-%left EN_DIFFERENCE
 
-%left UNION
-%left INTERSECT
-%left BACKSLASH
+/* Precedence: lowest to highest (later = higher precedence) */
+/* IN/EN_IN have lowest precedence so "x in A extends B" = "x in (A extends B)" */
+%left IN EN_IN
+%left EXTENDS EN_EXTENDS
+%left UNION EN_UNION
+%left INTERSECT EN_INTERSECT
+%left BACKSLASH EN_DIFFERENCE
 
 %token ARROW
 %token TERMINAL
@@ -117,6 +120,8 @@
 %type<yuck> abstract_size
 %type<yuck> abstract_alphabet
 %type<yuck> algorithm
+%type<yuck> algorithm_name
+%type<yuck> algorithm_word_param
 %type<yuck> algorithm_rules
 %type<yuck> algorithm_rule
 %type<yuck> pattern
@@ -506,17 +511,53 @@ abstract_alphabet
         $$ = s;
     }
     ;
-algorithm
-    : IDENTIFIER DOUBLE_COLON variable LPAREN IDENTIFIER RPAREN LCURL algorithm_rules RCURL {
-        /* A::B (C) { rules } */
+algorithm_name
+    : IDENTIFIER {
         syntax_store *s = Syntax.push();
+        s->type = ast_variable;
+        s->token_index = (size_t) @1.first_column;
+        s->size = 0;
+        s->content = NULL;
+        $$ = s;
+    }
+    ;
+algorithm_word_param
+    : IDENTIFIER {
+        syntax_store *s = Syntax.push();
+        s->type = ast_variable;
+        s->token_index = (size_t) @1.first_column;
+        s->size = 0;
+        s->content = NULL;
+        $$ = s;
+    }
+    ;
+algorithm
+    : algorithm_name DOUBLE_COLON variable LPAREN algorithm_word_param RPAREN LCURL algorithm_rules RCURL {
+        /* A::B (C) { rules }
+           content[0] = algorithm name (ast_variable)
+           content[1] = alphabet variable (ast_variable)
+           content[2] = word parameter name (ast_variable)
+           content[3] = rules (ast_algorithm_rules) */
+        syntax_store *s = Syntax.push();
+        syntax_store *name = (syntax_store *) $1;
+        syntax_store *alphabet_var = (syntax_store *) $3;
+        syntax_store *word_param = (syntax_store *) $5;
         syntax_store *rules = (syntax_store *) $8;
+
         s->type = ast_algorithm;
         s->token_index = TheIndex;
-        s->size = 1;
-        s->content = malloc(sizeof(syntax_store *));
-        s->content[0] = rules;
+        s->size = 4;
+        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->content[0] = name;
+        s->content[1] = alphabet_var;
+        s->content[2] = word_param;
+        s->content[3] = rules;
+
+        name->topic = s;
+        if (alphabet_var != NULL) alphabet_var->topic = s;
+        word_param->topic = s;
         if (rules != NULL) rules->topic = s;
+
         $$ = s;
     }
     ;

@@ -38,6 +38,42 @@ typedef struct aliteral {
 
 } alphabet_literal;
 
+/* A single substitution rule in a Markov algorithm.
+   Rules have form: P -> Q (substitution) or P -. (terminal) */
+typedef struct arule {
+    syntax_store *store;           /* AST node for this rule */
+    syntax_store *pattern;         /* Left side pattern (P) */
+    syntax_store *replacement;     /* Right side replacement (Q), NULL if terminal */
+    bool          is_terminal;     /* True if this is a terminal rule (P -.) */
+} algorithm_rule;
+
+/* Definition of a Markov algorithm.
+   Syntax: name::alphabet (word_param) { rules } */
+typedef struct adef {
+    syntax_store     *store;       /* AST node (ast_algorithm) */
+    struct pcontext  *context;     /* Context this algorithm is defined in */
+
+    /* Algorithm name (from store->content[0]) */
+    lexical_store    *name;
+
+    /* Reference to alphabet the algorithm operates over */
+    syntax_store     *alphabet_ref;    /* AST variable node */
+    alphabet_literal *alphabet;        /* Resolved alphabet, NULL until resolved */
+
+    /* Word parameter that the algorithm accepts */
+    lexical_store    *word_param;
+
+    /* List of substitution rules */
+    size_t            rules_count;
+    size_t            rules_capacity;
+    algorithm_rule  **rules;
+} algorithm_definition;
+
+typedef struct {
+    size_t                  count;
+    size_t                  capacity;
+} algorithm_definition_info;
+
 /* Struct containing the context of the program's scope. Including 
    variable names and compile-time data known only to this scope. */
 typedef struct pcontext {
@@ -76,6 +112,10 @@ typedef struct pcontext {
     size_t             alphabet_literals_count;
     size_t             alphabet_literals_capacity;
     alphabet_literal **alphabet_literals;
+
+    size_t                   algorithms_count;
+    size_t                   algorithms_capacity;
+    algorithm_definition   **algorithms;
 } program_context;
 
 typedef struct {

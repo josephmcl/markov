@@ -95,6 +95,9 @@ syntax_store *_update_context_scope(syntax_store *store) {
     current->alphabet_literals_count = 0;
     current->alphabet_literals_capacity = 0;
     current->alphabet_literals = NULL;
+    current->algorithms_count = 0;
+    current->algorithms_capacity = 0;
+    current->algorithms = NULL;
     bool found = false;
     lexical_store *letter, *capture_lstore;
     syntax_store *capture_store;
@@ -203,7 +206,7 @@ syntax_store *_update_context_scope(syntax_store *store) {
 }
 
 syntax_store *update_program_context(syntax_store *store) {
-    switch (store->type) { 
+    switch (store->type) {
     case ast_statements:
         return NULL;
     case ast_program:
@@ -216,7 +219,9 @@ syntax_store *update_program_context(syntax_store *store) {
         return _update_context_alphabet_literal(store, &TheInfo, TheContext);
     case ast_variable:
         return _update_context_variable(store, &TheInfo, TheContext);
-    default: 
+    case ast_algorithm:
+        return _update_context_algorithm(store, &TheInfo, TheContext);
+    default:
         return NULL; }
 }
 
@@ -657,15 +662,42 @@ void validate_program_context (void) {
         }
         printf("| variables (%lu)\n", TheContext[i].variables_count);
         for (size_t j = 0; j < TheContext[i].variables_count; ++j) {
-            printf("| | size (%d) ", 
-                TheContext[i].variables[j]->end - 
+            printf("| | size (%d) ",
+                TheContext[i].variables[j]->end -
                 TheContext[i].variables[j]->begin);
-            printf("value (%.*s) ", 
-                TheContext[i].variables[j]->end - 
-                TheContext[i].variables[j]->begin, 
+            printf("value (%.*s) ",
+                TheContext[i].variables[j]->end -
+                TheContext[i].variables[j]->begin,
                 TheContext[i].variables[j]->begin);
-            printf("address (%p) \n",  
+            printf("address (%p) \n",
                 TheContext[i].variables[j]->begin);
+        }
+
+        printf("| algorithms (%lu)\n", TheContext[i].algorithms_count);
+        for (size_t j = 0; j < TheContext[i].algorithms_count; ++j) {
+            algorithm_definition *alg = TheContext[i].algorithms[j];
+            if (alg->name != NULL) {
+                int name_size = (int)(alg->name->end - alg->name->begin);
+                printf("| | name (%.*s)\n", name_size, alg->name->begin);
+            }
+            if (alg->alphabet_ref != NULL) {
+                lexical_store *alph_lex = Lex.store(alg->alphabet_ref->token_index);
+                int alph_size = (int)(alph_lex->end - alph_lex->begin);
+                printf("| | alphabet (%.*s)\n", alph_size, alph_lex->begin);
+            }
+            if (alg->word_param != NULL) {
+                int param_size = (int)(alg->word_param->end - alg->word_param->begin);
+                printf("| | word_param (%.*s)\n", param_size, alg->word_param->begin);
+            }
+            printf("| | rules (%lu)\n", alg->rules_count);
+            for (size_t k = 0; k < alg->rules_count; ++k) {
+                algorithm_rule *rule = alg->rules[k];
+                if (rule->is_terminal) {
+                    printf("| | | [terminal] pattern -> halt\n");
+                } else {
+                    printf("| | | [substitution] pattern -> replacement\n");
+                }
+            }
         }
         printf("\n");
     }
