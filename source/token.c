@@ -147,6 +147,7 @@ static uint8_t keyword_tokens[KY_TOKS * KY_TOKS_OFFSET] = {
 uint16_t keyword_token(uint8_t *s, uint8_t *end) {
     int i, j;
     uint8_t *temp, *stamp;
+    uint8_t next_char;
 
     stamp = keyword_tokens;
     for (i = 0; i < KY_TOKS; ++i) {
@@ -156,7 +157,13 @@ uint16_t keyword_token(uint8_t *s, uint8_t *end) {
             j += 1;
 
         if (*(stamp + j) == '\t') {
-            return 
+            /* Check that keyword is followed by non-identifier char */
+            next_char = *(s + j);
+            if (next_char >= 'a' && next_char <= 'z') continue;
+            if (next_char >= 'A' && next_char <= 'Z') continue;
+            if (next_char >= '0' && next_char <= '9') continue;
+            if (next_char == '_') continue;
+            return
                 ((i + KEYWORD_TOKENS) << 0x8) + j;
         }
         stamp += KY_TOKS_OFFSET;
