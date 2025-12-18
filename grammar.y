@@ -156,15 +156,15 @@ function
 u_inherited_scope_names
     : { $$ = NULL; }
     | inherited_scope_names { $$ = NULL; }
-    | EQUAL { 
+    | EQUAL {
         syntax_store *s = Syntax.push();
         s->type = ast_scope_context_names_literal;
-        s->token_index = TheIndex;
-        $$ = s; } 
-    | ATSIGN { 
+        s->token_index = @1.first_column;
+        $$ = s; }
+    | ATSIGN {
         syntax_store *s = Syntax.push();
         s->type = ast_scope_context_names_literal;
-        s->token_index = TheIndex;
+        s->token_index = @1.first_column;
         $$ = s; } 
     ;
 inherited_scope_names
@@ -230,12 +230,12 @@ scope_export
 scope_module
     : EN_MODULE {}
     ;
-scope_name 
-    : { $$ = NULL; } 
+scope_name
+    : { $$ = NULL; }
     | IDENTIFIER {
         syntax_store *s = Syntax.push();
         s->type = ast_scope_name;
-        s->token_index = TheIndex;
+        s->token_index = @1.first_column;
         $$ = s; }
     ;
 scope_context
@@ -270,11 +270,11 @@ import_statement
 l_expression 
     : variable { $$ = $1; }
     ;
-variable 
+variable
     : IDENTIFIER {
         syntax_store *s = Syntax.push();
         s->type = ast_variable;
-        s->token_index = TheIndex;
+        s->token_index = @1.first_column;
         $$ = s;
     }
     ;
@@ -296,7 +296,7 @@ extends_expression
         syntax_store *r_expression_l = (syntax_store *) $1;
         syntax_store *r_expression_r = (syntax_store *) $3;
         s->type = ast_extends_expression;
-        s->token_index = TheIndex;
+        s->token_index = @2.first_column;
         s->size = 2;
         s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = (syntax_store *) r_expression_l;
@@ -310,7 +310,7 @@ extends_expression
         syntax_store *r_expression_l = (syntax_store *) $1;
         syntax_store *r_expression_r = (syntax_store *) $3;
         s->type = ast_extends_expression;
-        s->token_index = TheIndex;
+        s->token_index = @2.first_column;
         s->size = 2;
         s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = (syntax_store *) r_expression_l;
@@ -324,7 +324,7 @@ union_expression
     : r_expression UNION r_expression {
         syntax_store *s = Syntax.push();
         s->type = ast_union_expression;
-        s->token_index = TheIndex;
+        s->token_index = @2.first_column;
         s->size = 2;
         s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = (syntax_store *) $1;
@@ -336,7 +336,7 @@ union_expression
     | r_expression EN_UNION r_expression {
         syntax_store *s = Syntax.push();
         s->type = ast_union_expression;
-        s->token_index = TheIndex;
+        s->token_index = @2.first_column;
         s->size = 2;
         s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = (syntax_store *) $1;
@@ -350,7 +350,7 @@ intersect_expression
     : r_expression INTERSECT r_expression {
         syntax_store *s = Syntax.push();
         s->type = ast_intersect_expression;
-        s->token_index = TheIndex;
+        s->token_index = @2.first_column;
         s->size = 2;
         s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = (syntax_store *) $1;
@@ -362,7 +362,7 @@ intersect_expression
     | r_expression EN_INTERSECT r_expression {
         syntax_store *s = Syntax.push();
         s->type = ast_intersect_expression;
-        s->token_index = TheIndex;
+        s->token_index = @2.first_column;
         s->size = 2;
         s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = (syntax_store *) $1;
@@ -376,7 +376,7 @@ difference_expression
     : r_expression BACKSLASH r_expression {
         syntax_store *s = Syntax.push();
         s->type = ast_difference_expression;
-        s->token_index = TheIndex;
+        s->token_index = @2.first_column;
         s->size = 2;
         s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = (syntax_store *) $1;
@@ -388,7 +388,7 @@ difference_expression
     | r_expression EN_DIFFERENCE r_expression {
         syntax_store *s = Syntax.push();
         s->type = ast_difference_expression;
-        s->token_index = TheIndex;
+        s->token_index = @2.first_column;
         s->size = 2;
         s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = (syntax_store *) $1;
@@ -445,7 +445,7 @@ letter
     : IDENTIFIER {
         syntax_store *s = Syntax.push();
         s->type = ast_letter;
-        s->token_index = TheIndex;
+        s->token_index = @1.first_column;
         $$ = s;
     }
     ;
@@ -453,7 +453,7 @@ word_literal
     : STRING_LITERAL {
         syntax_store *s = Syntax.push();
         s->type = ast_word_literal;
-        s->token_index = TheIndex;
+        s->token_index = @1.first_column;
         $$ = s;
     }
     ;
@@ -463,7 +463,7 @@ word_in_expression
         syntax_store *word = (syntax_store *) $1;
         syntax_store *alphabet = (syntax_store *) $3;
         s->type = ast_word_in_expression;
-        s->token_index = TheIndex;
+        s->token_index = @2.first_column;
         s->size = 2;
         s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = word;
@@ -477,7 +477,7 @@ word_in_expression
         syntax_store *word = (syntax_store *) $1;
         syntax_store *alphabet = (syntax_store *) $3;
         s->type = ast_word_in_expression;
-        s->token_index = TheIndex;
+        s->token_index = @2.first_column;
         s->size = 2;
         s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = word;
@@ -491,7 +491,7 @@ abstract_size
     : LBRACKET NUMBER RBRACKET {
         syntax_store *s = Syntax.push();
         s->type = ast_abstract_size;
-        s->token_index = TheIndex - 1;  /* token index of NUMBER */
+        s->token_index = @2.first_column;  /* token index of NUMBER */
         $$ = s;
     }
     ;
@@ -501,7 +501,7 @@ abstract_alphabet
         syntax_store *abstract_part = (syntax_store *) $1;
         syntax_store *concrete_part = (syntax_store *) $3;
         s->type = ast_abstract_alphabet;
-        s->token_index = TheIndex;
+        s->token_index = @2.first_column;
         s->size = 2;
         s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = abstract_part;
@@ -545,7 +545,7 @@ algorithm
         syntax_store *rules = (syntax_store *) $8;
 
         s->type = ast_algorithm;
-        s->token_index = TheIndex;
+        s->token_index = @1.first_column;  /* Use algorithm name's token */
         s->size = 4;
         s->content = malloc(sizeof(syntax_store *) * 4);
         s->content[0] = name;
@@ -590,7 +590,7 @@ algorithm_rule
         syntax_store *left = (syntax_store *) $1;
         syntax_store *right = (syntax_store *) $3;
         s->type = ast_algorithm_rule;
-        s->token_index = TheIndex;
+        s->token_index = @2.first_column;  /* ARROW token */
         s->size = 2;
         s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = left;
@@ -604,7 +604,7 @@ algorithm_rule
         syntax_store *s = Syntax.push();
         syntax_store *left = (syntax_store *) $1;
         s->type = ast_algorithm_rule;
-        s->token_index = TheIndex;
+        s->token_index = @2.first_column;  /* TERMINAL token */
         s->size = 1;
         s->content = malloc(sizeof(syntax_store *));
         s->content[0] = left;
@@ -617,7 +617,7 @@ pattern
         /* Single letter/identifier pattern */
         syntax_store *s = Syntax.push();
         s->type = ast_pattern;
-        s->token_index = TheIndex;
+        s->token_index = @1.first_column;
         s->size = 0;
         s->content = NULL;
         $$ = s;
