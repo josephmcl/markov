@@ -2,8 +2,10 @@
 
 An implementation of Markov's algorithm. Built from a comprehensive reading of "Theory of Algorithms" A. A. Markov 1954. 
 
+[Splash page](https://joseph.computer/markov/)
+
 ## About
- [Markov algorithms](https://en.wikipedia.org/wiki/Markov_algorithm) are **not** [Markov chains](https://en.wikipedia.org/wiki/Markov_chain).  They are simple string rewriting systems comprised of Alphabets and Productions --- more similar to Turing machines. They are not widely used, but have applications in certain constructivist mathematics. 
+ [Markov algorithms](https://en.wikipedia.org/wiki/Markov_algorithm) are simple string rewriting systems comprised of Alphabets and Productions --- similar to Turing machines. They are not widely used, but have applications in certain constructivist mathematics. 
 
 ## Progress 
 - Basic parsing is complete for constructing Alphabets is complete. 
