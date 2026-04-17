@@ -30,6 +30,8 @@ typedef enum {
     TOKEN_INTERSECT        = MULTI_BYTE_TOKENS + 5, // ∩  [1.2.7]
     TOKEN_ARROW            = MULTI_BYTE_TOKENS + 6, // -> [Algorithm rules]
     TOKEN_TERMINAL         = MULTI_BYTE_TOKENS + 7, // -. [Algorithm terminal rules]
+    TOKEN_EMIT_ARROW       = MULTI_BYTE_TOKENS + 8, // ~> [Algorithm emit rules]
+    TOKEN_EMIT_TERMINAL    = MULTI_BYTE_TOKENS + 9, // ~. [Algorithm emit terminal rules]
 
     TOKEN_EQUAL            = SINGLE_BYTE_TOKENS,      // = [1.2.6]
     TOKEN_COMMA            = SINGLE_BYTE_TOKENS + 1,  // , [1.2.6]
@@ -46,6 +48,8 @@ typedef enum {
     TOKEN_PLUS             = SINGLE_BYTE_TOKENS + 12, // + [abstract alphabet combination]
     TOKEN_LPAREN           = SINGLE_BYTE_TOKENS + 13, // ( [Algorithm parameter]
     TOKEN_RPAREN           = SINGLE_BYTE_TOKENS + 14, // ) [Algorithm parameter]
+    TOKEN_COLON            = SINGLE_BYTE_TOKENS + 15, // : [Rule name / emit separator]
+    TOKEN_TILDE            = SINGLE_BYTE_TOKENS + 16, // ~ [Stdin input in algorithm calls]
 
     // NOTE: Order must match keyword_tokens array in token.c
     // Longer keywords with shared prefixes must come first (e.g., intersect before in)

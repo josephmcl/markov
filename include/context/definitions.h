@@ -44,11 +44,14 @@ typedef struct arule {
     syntax_store *store;           /* AST node for this rule */
     syntax_store *pattern;         /* Left side pattern (P) */
     syntax_store *replacement;     /* Right side replacement (Q), NULL if terminal */
-    bool          is_terminal;     /* True if this is a terminal rule (P -.) */
+    bool          is_terminal;     /* True if this is a terminal rule (-. or ~.) */
+    bool          has_emit;        /* True if this is an emit rule (~> or ~.) */
+    lexical_store *emit_string;    /* Emit string literal token, NULL if silent/default */
+    lexical_store *rule_name;      /* Rule name identifier token, NULL if unnamed */
 } algorithm_rule;
 
 /* Definition of a Markov algorithm.
-   Syntax: name::alphabet (word_param) { rules } */
+   Syntax: name::alphabet { rules } */
 typedef struct adef {
     syntax_store     *store;       /* AST node (ast_algorithm) */
     struct pcontext  *context;     /* Context this algorithm is defined in */
@@ -60,9 +63,6 @@ typedef struct adef {
     syntax_store     *alphabet_ref;    /* AST variable node */
     alphabet_literal *alphabet;        /* Resolved alphabet, NULL until resolved */
 
-    /* Word parameter that the algorithm accepts */
-    lexical_store    *word_param;
-
     /* List of substitution rules */
     size_t            rules_count;
     size_t            rules_capacity;
@@ -73,6 +73,20 @@ typedef struct {
     size_t                  count;
     size_t                  capacity;
 } algorithm_definition_info;
+
+/* Algorithm call: swap("□□■"), swap(w), swap(~) */
+typedef enum {
+    CALL_LITERAL,   /* string literal argument */
+    CALL_VARIABLE,  /* word variable reference */
+    CALL_STDIN      /* ~ (read from stdin) */
+} algorithm_call_type;
+
+typedef struct {
+    syntax_store       *store;           /* AST node */
+    lexical_store      *algorithm_name;  /* algorithm to invoke */
+    algorithm_call_type input_type;
+    lexical_store      *input_token;     /* string literal or variable name, NULL for stdin */
+} algorithm_call;
 
 /* Struct containing the context of the program's scope. Including 
    variable names and compile-time data known only to this scope. */
@@ -116,6 +130,10 @@ typedef struct pcontext {
     size_t                   algorithms_count;
     size_t                   algorithms_capacity;
     algorithm_definition   **algorithms;
+
+    size_t                   calls_count;
+    size_t                   calls_capacity;
+    algorithm_call         **calls;
 } program_context;
 
 typedef struct {

@@ -363,8 +363,12 @@ int lexer_get_token_bison_compat(size_t index) {
         case TOKEN_NUMBER: return NUMBER;
         case TOKEN_ARROW: return ARROW;
         case TOKEN_TERMINAL: return TERMINAL;
+        case TOKEN_EMIT_ARROW: return EMIT_ARROW;
+        case TOKEN_EMIT_TERMINAL: return EMIT_TERMINAL;
         case TOKEN_LPAREN: return LPAREN;
         case TOKEN_RPAREN: return RPAREN;
+        case TOKEN_COLON: return COLON;
+        case TOKEN_TILDE: return TILDE;
         default: {
             printf("stray token, %d\n", token);
             return TOKEN_UNSUPPORTED_BY_PARSER;

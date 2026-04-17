@@ -90,6 +90,10 @@
 
 %token ARROW
 %token TERMINAL
+%token EMIT_ARROW
+%token EMIT_TERMINAL
+%token COLON
+%token TILDE
 %token LPAREN
 %token RPAREN
 
@@ -121,9 +125,9 @@
 %type<yuck> abstract_alphabet
 %type<yuck> algorithm
 %type<yuck> algorithm_name
-%type<yuck> algorithm_word_param
 %type<yuck> algorithm_rules
 %type<yuck> algorithm_rule
+%type<yuck> algorithm_call
 %type<yuck> pattern
 %type<yuck> IDENTIFIER
 %type<yuck> STRING_LITERAL
@@ -215,6 +219,7 @@ statement
     | function             { $$ = $1; }
     | scope                { $$ = $1; }
     | algorithm            { $$ = $1; }
+    | algorithm_call       { $$ = $1; }
     ;
 scope 
     : scope_export scope_module scope_name LCURL statements RCURL {
@@ -521,41 +526,27 @@ algorithm_name
         $$ = s;
     }
     ;
-algorithm_word_param
-    : IDENTIFIER {
-        syntax_store *s = Syntax.push();
-        s->type = ast_variable;
-        s->token_index = (size_t) @1.first_column;
-        s->size = 0;
-        s->content = NULL;
-        $$ = s;
-    }
-    ;
 algorithm
-    : algorithm_name DOUBLE_COLON variable LPAREN algorithm_word_param RPAREN LCURL algorithm_rules RCURL {
-        /* A::B (C) { rules }
+    : algorithm_name DOUBLE_COLON variable LCURL algorithm_rules RCURL {
+        /* A::B { rules }
            content[0] = algorithm name (ast_variable)
            content[1] = alphabet variable (ast_variable)
-           content[2] = word parameter name (ast_variable)
-           content[3] = rules (ast_algorithm_rules) */
+           content[2] = rules (ast_algorithm_rules) */
         syntax_store *s = Syntax.push();
         syntax_store *name = (syntax_store *) $1;
         syntax_store *alphabet_var = (syntax_store *) $3;
-        syntax_store *word_param = (syntax_store *) $5;
-        syntax_store *rules = (syntax_store *) $8;
+        syntax_store *rules = (syntax_store *) $5;
 
         s->type = ast_algorithm;
         s->token_index = @1.first_column;  /* Use algorithm name's token */
-        s->size = 4;
-        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->size = 3;
+        s->content = malloc(sizeof(syntax_store *) * 3);
         s->content[0] = name;
         s->content[1] = alphabet_var;
-        s->content[2] = word_param;
-        s->content[3] = rules;
+        s->content[2] = rules;
 
         name->topic = s;
         if (alphabet_var != NULL) alphabet_var->topic = s;
-        word_param->topic = s;
         if (rules != NULL) rules->topic = s;
 
         $$ = s;
@@ -584,31 +575,198 @@ algorithm_rules
     }
     ;
 algorithm_rule
+    /* AST layout for all variants:
+       content[0] = LHS pattern (always)
+       content[1] = RHS replacement (NULL for terminal)
+       content[2] = rule name (ast_rule_name, NULL if unnamed)
+       content[3] = emit string (ast_emit_expression, NULL if silent/default)
+       token_index = arrow token (ARROW/TERMINAL/EMIT_ARROW/EMIT_TERMINAL) */
+
+    /* --- Unnamed rules --- */
     : pattern ARROW pattern {
-        /* P -> Q (substitution rule) */
         syntax_store *s = Syntax.push();
-        syntax_store *left = (syntax_store *) $1;
-        syntax_store *right = (syntax_store *) $3;
         s->type = ast_algorithm_rule;
-        s->token_index = @2.first_column;  /* ARROW token */
-        s->size = 2;
-        s->content = malloc(sizeof(syntax_store *) * 2);
-        s->content[0] = left;
-        s->content[0]->topic = s;
-        s->content[1] = right;
-        s->content[1]->topic = s;
+        s->token_index = @2.first_column;
+        s->size = 4;
+        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->content[0] = (syntax_store *) $1; s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $3; s->content[1]->topic = s;
+        s->content[2] = NULL;
+        s->content[3] = NULL;
         $$ = s;
     }
     | pattern TERMINAL {
-        /* P -. (terminal rule) */
         syntax_store *s = Syntax.push();
-        syntax_store *left = (syntax_store *) $1;
         s->type = ast_algorithm_rule;
-        s->token_index = @2.first_column;  /* TERMINAL token */
-        s->size = 1;
-        s->content = malloc(sizeof(syntax_store *));
-        s->content[0] = left;
-        s->content[0]->topic = s;
+        s->token_index = @2.first_column;
+        s->size = 4;
+        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->content[0] = (syntax_store *) $1; s->content[0]->topic = s;
+        s->content[1] = NULL;
+        s->content[2] = NULL;
+        s->content[3] = NULL;
+        $$ = s;
+    }
+    | pattern EMIT_ARROW pattern COLON STRING_LITERAL {
+        syntax_store *s = Syntax.push();
+        syntax_store *emit = Syntax.push();
+        emit->type = ast_emit_expression;
+        emit->token_index = @5.first_column;
+        emit->size = 0; emit->content = NULL;
+        s->type = ast_algorithm_rule;
+        s->token_index = @2.first_column;
+        s->size = 4;
+        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->content[0] = (syntax_store *) $1; s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $3; s->content[1]->topic = s;
+        s->content[2] = NULL;
+        s->content[3] = emit; emit->topic = s;
+        $$ = s;
+    }
+    | pattern EMIT_ARROW pattern {
+        syntax_store *s = Syntax.push();
+        s->type = ast_algorithm_rule;
+        s->token_index = @2.first_column;
+        s->size = 4;
+        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->content[0] = (syntax_store *) $1; s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $3; s->content[1]->topic = s;
+        s->content[2] = NULL;
+        s->content[3] = NULL;
+        $$ = s;
+    }
+    | pattern EMIT_TERMINAL COLON STRING_LITERAL {
+        syntax_store *s = Syntax.push();
+        syntax_store *emit = Syntax.push();
+        emit->type = ast_emit_expression;
+        emit->token_index = @4.first_column;
+        emit->size = 0; emit->content = NULL;
+        s->type = ast_algorithm_rule;
+        s->token_index = @2.first_column;
+        s->size = 4;
+        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->content[0] = (syntax_store *) $1; s->content[0]->topic = s;
+        s->content[1] = NULL;
+        s->content[2] = NULL;
+        s->content[3] = emit; emit->topic = s;
+        $$ = s;
+    }
+    | pattern EMIT_TERMINAL {
+        syntax_store *s = Syntax.push();
+        s->type = ast_algorithm_rule;
+        s->token_index = @2.first_column;
+        s->size = 4;
+        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->content[0] = (syntax_store *) $1; s->content[0]->topic = s;
+        s->content[1] = NULL;
+        s->content[2] = NULL;
+        s->content[3] = NULL;
+        $$ = s;
+    }
+
+    /* --- Named rules --- */
+    | IDENTIFIER COLON pattern ARROW pattern {
+        syntax_store *s = Syntax.push();
+        syntax_store *name = Syntax.push();
+        name->type = ast_rule_name;
+        name->token_index = @1.first_column;
+        name->size = 0; name->content = NULL;
+        s->type = ast_algorithm_rule;
+        s->token_index = @4.first_column;
+        s->size = 4;
+        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->content[0] = (syntax_store *) $3; s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $5; s->content[1]->topic = s;
+        s->content[2] = name; name->topic = s;
+        s->content[3] = NULL;
+        $$ = s;
+    }
+    | IDENTIFIER COLON pattern TERMINAL {
+        syntax_store *s = Syntax.push();
+        syntax_store *name = Syntax.push();
+        name->type = ast_rule_name;
+        name->token_index = @1.first_column;
+        name->size = 0; name->content = NULL;
+        s->type = ast_algorithm_rule;
+        s->token_index = @4.first_column;
+        s->size = 4;
+        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->content[0] = (syntax_store *) $3; s->content[0]->topic = s;
+        s->content[1] = NULL;
+        s->content[2] = name; name->topic = s;
+        s->content[3] = NULL;
+        $$ = s;
+    }
+    | IDENTIFIER COLON pattern EMIT_ARROW pattern COLON STRING_LITERAL {
+        syntax_store *s = Syntax.push();
+        syntax_store *name = Syntax.push();
+        name->type = ast_rule_name;
+        name->token_index = @1.first_column;
+        name->size = 0; name->content = NULL;
+        syntax_store *emit = Syntax.push();
+        emit->type = ast_emit_expression;
+        emit->token_index = @7.first_column;
+        emit->size = 0; emit->content = NULL;
+        s->type = ast_algorithm_rule;
+        s->token_index = @4.first_column;
+        s->size = 4;
+        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->content[0] = (syntax_store *) $3; s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $5; s->content[1]->topic = s;
+        s->content[2] = name; name->topic = s;
+        s->content[3] = emit; emit->topic = s;
+        $$ = s;
+    }
+    | IDENTIFIER COLON pattern EMIT_ARROW pattern {
+        syntax_store *s = Syntax.push();
+        syntax_store *name = Syntax.push();
+        name->type = ast_rule_name;
+        name->token_index = @1.first_column;
+        name->size = 0; name->content = NULL;
+        s->type = ast_algorithm_rule;
+        s->token_index = @4.first_column;
+        s->size = 4;
+        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->content[0] = (syntax_store *) $3; s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $5; s->content[1]->topic = s;
+        s->content[2] = name; name->topic = s;
+        s->content[3] = NULL;
+        $$ = s;
+    }
+    | IDENTIFIER COLON pattern EMIT_TERMINAL COLON STRING_LITERAL {
+        syntax_store *s = Syntax.push();
+        syntax_store *name = Syntax.push();
+        name->type = ast_rule_name;
+        name->token_index = @1.first_column;
+        name->size = 0; name->content = NULL;
+        syntax_store *emit = Syntax.push();
+        emit->type = ast_emit_expression;
+        emit->token_index = @6.first_column;
+        emit->size = 0; emit->content = NULL;
+        s->type = ast_algorithm_rule;
+        s->token_index = @4.first_column;
+        s->size = 4;
+        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->content[0] = (syntax_store *) $3; s->content[0]->topic = s;
+        s->content[1] = NULL;
+        s->content[2] = name; name->topic = s;
+        s->content[3] = emit; emit->topic = s;
+        $$ = s;
+    }
+    | IDENTIFIER COLON pattern EMIT_TERMINAL {
+        syntax_store *s = Syntax.push();
+        syntax_store *name = Syntax.push();
+        name->type = ast_rule_name;
+        name->token_index = @1.first_column;
+        name->size = 0; name->content = NULL;
+        s->type = ast_algorithm_rule;
+        s->token_index = @4.first_column;
+        s->size = 4;
+        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->content[0] = (syntax_store *) $3; s->content[0]->topic = s;
+        s->content[1] = NULL;
+        s->content[2] = name; name->topic = s;
+        s->content[3] = NULL;
         $$ = s;
     }
     ;
@@ -629,5 +787,66 @@ pattern
         syntax_store *pat = (syntax_store *) $1;
         pat->size += 1;
         $$ = pat;
+    }
+    ;
+algorithm_call
+    : IDENTIFIER LPAREN STRING_LITERAL RPAREN {
+        /* swap("□□■") — literal word input
+           content[0] = algorithm name (ast_variable)
+           content[1] = word literal (ast_word_literal) */
+        syntax_store *s = Syntax.push();
+        syntax_store *name = Syntax.push();
+        name->type = ast_variable;
+        name->token_index = @1.first_column;
+        name->size = 0; name->content = NULL;
+        syntax_store *arg = Syntax.push();
+        arg->type = ast_word_literal;
+        arg->token_index = @3.first_column;
+        arg->size = 0; arg->content = NULL;
+        s->type = ast_algorithm_call;
+        s->token_index = @1.first_column;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = name; name->topic = s;
+        s->content[1] = arg; arg->topic = s;
+        $$ = s;
+    }
+    | IDENTIFIER LPAREN IDENTIFIER RPAREN {
+        /* swap(w) — word variable reference
+           content[0] = algorithm name (ast_variable)
+           content[1] = variable reference (ast_variable) */
+        syntax_store *s = Syntax.push();
+        syntax_store *name = Syntax.push();
+        name->type = ast_variable;
+        name->token_index = @1.first_column;
+        name->size = 0; name->content = NULL;
+        syntax_store *arg = Syntax.push();
+        arg->type = ast_variable;
+        arg->token_index = @3.first_column;
+        arg->size = 0; arg->content = NULL;
+        s->type = ast_algorithm_call;
+        s->token_index = @1.first_column;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = name; name->topic = s;
+        s->content[1] = arg; arg->topic = s;
+        $$ = s;
+    }
+    | IDENTIFIER LPAREN TILDE RPAREN {
+        /* swap(~) — stdin input
+           content[0] = algorithm name (ast_variable)
+           content[1] = NULL (signals stdin) */
+        syntax_store *s = Syntax.push();
+        syntax_store *name = Syntax.push();
+        name->type = ast_variable;
+        name->token_index = @1.first_column;
+        name->size = 0; name->content = NULL;
+        s->type = ast_algorithm_call;
+        s->token_index = @1.first_column;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = name; name->topic = s;
+        s->content[1] = NULL;
+        $$ = s;
     }
     ;

@@ -21,6 +21,9 @@
 #define LETTER_DATA_BASE  0
 #define LETTER_TABLE_BASE 1024
 #define WORD_BUFFER_BASE  4096
+#define EMIT_BUFFER_BASE  8192
+#define MATCH_SAVE_BASE   12288
+#define STRING_DATA_BASE  16384
 
 /* ========================================================================
  * WAT Writer Infrastructure
@@ -92,6 +95,9 @@ void init_wat(void) {
     }
 }
 
+/* Forward declarations */
+extern program_context *context_root(void);
+
 /* ========================================================================
  * Global Letter Table (compile-time data structure)
  * ======================================================================== */
@@ -107,6 +113,68 @@ typedef struct {
 } global_letter_table;
 
 static global_letter_table GlobalLetters = { 0 };
+
+/* String constant table for emit expressions (algorithm names, rule names, etc.) */
+#define MAX_STRING_CONSTANTS 64
+typedef struct {
+    int count;
+    size_t next_offset;   /* next available offset relative to STRING_DATA_BASE */
+    struct {
+        const uint8_t *bytes;
+        size_t len;
+        size_t wasm_offset;  /* absolute offset in WASM memory */
+    } entries[MAX_STRING_CONSTANTS];
+} string_constant_table;
+
+static string_constant_table StringConstants = { 0 };
+
+/* Register a string constant, returns its index. Deduplicates. */
+static int register_string_constant(const uint8_t *bytes, size_t len) {
+    /* Check for existing */
+    for (int i = 0; i < StringConstants.count; i++) {
+        if (StringConstants.entries[i].len == len &&
+            memcmp(StringConstants.entries[i].bytes, bytes, len) == 0) {
+            return i;
+        }
+    }
+    if (StringConstants.count >= MAX_STRING_CONSTANTS) return -1;
+    int idx = StringConstants.count++;
+    StringConstants.entries[idx].bytes = bytes;
+    StringConstants.entries[idx].len = len;
+    StringConstants.entries[idx].wasm_offset = STRING_DATA_BASE + StringConstants.next_offset;
+    StringConstants.next_offset += len;
+    return idx;
+}
+
+/* Check if any algorithm in the program has emit rules */
+static bool program_has_emit_rules(void) {
+    program_context *ctx = context_root();
+    if (ctx == NULL) return false;
+    /* Walk all contexts recursively via a simple stack */
+    program_context *stack[64];
+    int sp = 0;
+    stack[sp++] = ctx;
+    while (sp > 0) {
+        program_context *c = stack[--sp];
+        for (size_t i = 0; i < c->algorithms_count; i++) {
+            for (size_t j = 0; j < c->algorithms[i]->rules_count; j++) {
+                if (c->algorithms[i]->rules[j]->has_emit) return true;
+            }
+        }
+        for (size_t i = 0; i < c->content_count && sp < 64; i++) {
+            stack[sp++] = c->content[i];
+        }
+    }
+    return false;
+}
+
+/* Check if a specific algorithm has any emit rules */
+static bool algorithm_has_emit_rules(algorithm_definition *alg) {
+    for (size_t i = 0; i < alg->rules_count; i++) {
+        if (alg->rules[i]->has_emit) return true;
+    }
+    return false;
+}
 
 /* Build the global letter table from the Data module's null-separated blob. */
 static void build_global_letter_table(struct data *Data) {
@@ -213,8 +281,6 @@ static int pattern_to_indices(
 /* ========================================================================
  * Forward declarations
  * ======================================================================== */
-
-extern program_context *context_root(void);
 
 void wasm_write_memory(void);
 void wasm_write_letter_data(struct data *Data);
@@ -567,6 +633,321 @@ void wasm_write_helper_functions(void) {
 }
 
 /* ========================================================================
+ * Emit codegen
+ * ======================================================================== */
+
+/* Interpolation variable types */
+typedef enum {
+    EMIT_LIT,    /* literal text bytes */
+    EMIT_WORD,   /* ~ or ~word: full word after replacement */
+    EMIT_WAS,    /* ~0 or ~was: full word before replacement */
+    EMIT_LEFT,   /* ~l or ~left: prefix before match */
+    EMIT_POST,   /* ~p or ~post: postfix after replacement */
+    EMIT_MATCH,  /* ~m or ~match: matched pattern text */
+    EMIT_SUB,    /* ~s or ~sub: replacement text */
+    EMIT_ALG,    /* ~a or ~alg: algorithm name */
+    EMIT_NAME,   /* ~n or ~name: rule name */
+} emit_segment_type;
+
+typedef struct {
+    emit_segment_type type;
+    const uint8_t *bytes;  /* for EMIT_LIT only */
+    size_t len;            /* for EMIT_LIT only */
+} emit_segment;
+
+#define MAX_EMIT_SEGMENTS 64
+
+/* Parse an emit template string (between quotes) into segments.
+ * Returns number of segments, or -1 on error. */
+static int parse_emit_template(
+    const uint8_t *str, size_t str_len,
+    emit_segment *segments, int max_segments)
+{
+    int count = 0;
+    size_t pos = 0;
+    size_t lit_start = 0;
+    bool in_lit = false;
+
+    while (pos < str_len && count < max_segments) {
+        if (str[pos] == '~') {
+            /* Flush accumulated literal */
+            if (in_lit && pos > lit_start) {
+                segments[count].type = EMIT_LIT;
+                segments[count].bytes = &str[lit_start];
+                segments[count].len = pos - lit_start;
+                count++;
+                in_lit = false;
+                if (count >= max_segments) return count;
+            }
+
+            pos++;
+            if (pos >= str_len) {
+                /* Bare ~ at end = ~word */
+                segments[count].type = EMIT_WORD;
+                count++;
+                break;
+            }
+
+            /* Check what follows ~ */
+            emit_segment_type var_type = EMIT_WORD;
+            size_t advance = 0;
+
+            if (pos + 3 < str_len && memcmp(&str[pos], "word", 4) == 0) {
+                var_type = EMIT_WORD; advance = 4;
+            } else if (pos + 2 < str_len && memcmp(&str[pos], "was", 3) == 0) {
+                var_type = EMIT_WAS; advance = 3;
+            } else if (pos + 3 < str_len && memcmp(&str[pos], "left", 4) == 0) {
+                var_type = EMIT_LEFT; advance = 4;
+            } else if (pos + 3 < str_len && memcmp(&str[pos], "post", 4) == 0) {
+                var_type = EMIT_POST; advance = 4;
+            } else if (pos + 4 < str_len && memcmp(&str[pos], "match", 5) == 0) {
+                var_type = EMIT_MATCH; advance = 5;
+            } else if (pos + 2 < str_len && memcmp(&str[pos], "sub", 3) == 0) {
+                var_type = EMIT_SUB; advance = 3;
+            } else if (pos + 2 < str_len && memcmp(&str[pos], "alg", 3) == 0) {
+                var_type = EMIT_ALG; advance = 3;
+            } else if (pos + 3 < str_len && memcmp(&str[pos], "name", 4) == 0) {
+                var_type = EMIT_NAME; advance = 4;
+            } else if (str[pos] == '0') {
+                var_type = EMIT_WAS; advance = 1;
+            } else if (str[pos] == 'l') {
+                var_type = EMIT_LEFT; advance = 1;
+            } else if (str[pos] == 'p') {
+                var_type = EMIT_POST; advance = 1;
+            } else if (str[pos] == 'm') {
+                var_type = EMIT_MATCH; advance = 1;
+            } else if (str[pos] == 's') {
+                var_type = EMIT_SUB; advance = 1;
+            } else if (str[pos] == 'a') {
+                var_type = EMIT_ALG; advance = 1;
+            } else if (str[pos] == 'n') {
+                var_type = EMIT_NAME; advance = 1;
+            } else {
+                /* Bare ~ not followed by known var = ~word */
+                var_type = EMIT_WORD; advance = 0;
+            }
+
+            segments[count].type = var_type;
+            segments[count].bytes = NULL;
+            segments[count].len = 0;
+            count++;
+            pos += advance;
+            lit_start = pos;
+            in_lit = false;
+        } else {
+            if (!in_lit) {
+                lit_start = pos;
+                in_lit = true;
+            }
+            pos++;
+        }
+    }
+
+    /* Flush trailing literal */
+    if (in_lit && pos > lit_start && count < max_segments) {
+        segments[count].type = EMIT_LIT;
+        segments[count].bytes = &str[lit_start];
+        segments[count].len = pos - lit_start;
+        count++;
+    }
+
+    return count;
+}
+
+/* Generate WASM code to write a literal byte sequence to emit buffer.
+ * Advances $emit_ptr. */
+static void wasm_emit_literal(const uint8_t *bytes, size_t len) {
+    char buf[256];
+    for (size_t i = 0; i < len; i++) {
+        snprintf(buf, sizeof(buf),
+            "(i32.store8 (local.get $emit_ptr) (i32.const %d))",
+            bytes[i]);
+        WL(buf);
+        WL("(local.set $emit_ptr (i32.add (local.get $emit_ptr) (i32.const 1)))");
+    }
+}
+
+/* Generate WASM code to copy a string constant to emit buffer.
+ * The string is at a known offset in WASM memory. Advances $emit_ptr. */
+static void wasm_emit_string_constant(int str_idx) {
+    char buf[256];
+    size_t offset = StringConstants.entries[str_idx].wasm_offset;
+    size_t len = StringConstants.entries[str_idx].len;
+    snprintf(buf, sizeof(buf),
+        "(call $memmove (local.get $emit_ptr) (i32.const %zu) (i32.const %zu))",
+        offset, len);
+    WL(buf);
+    snprintf(buf, sizeof(buf),
+        "(local.set $emit_ptr (i32.add (local.get $emit_ptr) (i32.const %zu)))", len);
+    WL(buf);
+}
+
+/* Generate WASM code to decode a word slice (letter indices -> raw bytes)
+ * into the emit buffer. Advances $emit_ptr by the decoded byte count.
+ *
+ * src_expr: WAT expression for the start pointer of the letter index slice
+ * len_expr: WAT expression for the number of letter indices */
+static void wasm_emit_decode_slice(const char *src_expr, const char *len_expr) {
+    char buf[1024];
+    /* Call $decode_word(src, len, emit_ptr) -> bytes written */
+    snprintf(buf, sizeof(buf),
+        "(local.set $emit_ptr (i32.add (local.get $emit_ptr) (call $decode_word %s %s (local.get $emit_ptr))))",
+        src_expr, len_expr);
+    WL(buf);
+}
+
+/* Generate the emit code for a rule that has has_emit=true.
+ * Called inside the "then" branch after substitution/terminal handling.
+ * Assumes $i = match position, $word_ptr, $word_len = post-substitution state.
+ * $pre_word_len = word length before substitution (saved earlier).
+ * Match region saved at MATCH_SAVE_BASE (pat_count bytes). */
+static void wasm_write_emit_code(
+    algorithm_definition *alg,
+    algorithm_rule *rule,
+    int pat_count,
+    int repl_count)
+{
+    char buf[512];
+
+    /* Determine the emit template */
+    emit_segment segments[MAX_EMIT_SEGMENTS];
+    int seg_count;
+
+    if (rule->emit_string != NULL) {
+        /* Explicit emit string — strip quotes */
+        const uint8_t *str = rule->emit_string->begin + 1; /* skip opening quote */
+        size_t str_len = (rule->emit_string->end - rule->emit_string->begin) - 2;
+        seg_count = parse_emit_template(str, str_len, segments, MAX_EMIT_SEGMENTS);
+    } else {
+        /* Default: emit ~word (full word after replacement) */
+        segments[0].type = EMIT_WORD;
+        segments[0].bytes = NULL;
+        segments[0].len = 0;
+        seg_count = 1;
+    }
+
+    if (seg_count <= 0) return;
+
+    WN();
+    WL(";; Emit output");
+    snprintf(buf, sizeof(buf), "(local.set $emit_ptr (i32.const %d))", EMIT_BUFFER_BASE);
+    WL(buf);
+
+    for (int s = 0; s < seg_count; s++) {
+        switch (segments[s].type) {
+        case EMIT_LIT:
+            wasm_emit_literal(segments[s].bytes, segments[s].len);
+            break;
+
+        case EMIT_WORD:
+            /* Full word after replacement: decode from word_ptr, word_len */
+            wasm_emit_decode_slice(
+                "(local.get $word_ptr)",
+                "(local.get $word_len)");
+            break;
+
+        case EMIT_WAS:
+            /* Full word before replacement: decode from word_ptr, pre_word_len.
+             * NOTE: the word buffer has been modified, so for a fully correct ~was
+             * we'd need to save the entire pre-substitution word. For now, decode
+             * from MATCH_SAVE_BASE for the match portion and reconstruct.
+             * Simpler approximation: decode left + saved_match + right(original). */
+            WL(";; ~was: left + saved match + original right");
+            /* Left portion (unchanged): word_ptr to word_ptr+$i */
+            wasm_emit_decode_slice(
+                "(local.get $word_ptr)",
+                "(local.get $match_start)");
+            /* Saved match: MATCH_SAVE_BASE, pat_count */
+            snprintf(buf, sizeof(buf),
+                "(local.set $emit_ptr (i32.add (local.get $emit_ptr) (call $decode_word (i32.const %d) (i32.const %d) (local.get $emit_ptr))))",
+                MATCH_SAVE_BASE, pat_count);
+            WL(buf);
+            /* Right portion (after match, using post-sub buffer):
+             * word_ptr + match_start + repl_count, word_len - match_start - repl_count
+             * But we need original right = pre_word_len - match_start - pat_count indices
+             * starting at word_ptr + match_start + repl_count in the post-sub buffer.
+             * Since memmove preserved the tail, this is correct. */
+            snprintf(buf, sizeof(buf),
+                "(i32.add (local.get $word_ptr) (i32.add (local.get $match_start) (i32.const %d)))",
+                repl_count);
+            {
+                char len_buf[256];
+                snprintf(len_buf, sizeof(len_buf),
+                    "(i32.sub (local.get $pre_word_len) (i32.add (local.get $match_start) (i32.const %d)))",
+                    pat_count);
+                wasm_emit_decode_slice(buf, len_buf);
+            }
+            break;
+
+        case EMIT_LEFT:
+            /* Prefix: word_ptr, $match_start indices */
+            wasm_emit_decode_slice(
+                "(local.get $word_ptr)",
+                "(local.get $match_start)");
+            break;
+
+        case EMIT_POST:
+            /* Postfix after replacement: word_ptr + match_start + repl_count */
+            snprintf(buf, sizeof(buf),
+                "(i32.add (local.get $word_ptr) (i32.add (local.get $match_start) (i32.const %d)))",
+                repl_count);
+            {
+                char len_buf[256];
+                snprintf(len_buf, sizeof(len_buf),
+                    "(i32.sub (local.get $word_len) (i32.add (local.get $match_start) (i32.const %d)))",
+                    repl_count);
+                wasm_emit_decode_slice(buf, len_buf);
+            }
+            break;
+
+        case EMIT_MATCH:
+            /* Saved match at MATCH_SAVE_BASE, pat_count bytes */
+            snprintf(buf, sizeof(buf),
+                "(i32.const %d)", MATCH_SAVE_BASE);
+            {
+                char len_buf[32];
+                snprintf(len_buf, sizeof(len_buf), "(i32.const %d)", pat_count);
+                wasm_emit_decode_slice(buf, len_buf);
+            }
+            break;
+
+        case EMIT_SUB:
+            /* Replacement text: word_ptr + match_start, repl_count */
+            snprintf(buf, sizeof(buf),
+                "(i32.add (local.get $word_ptr) (local.get $match_start))");
+            {
+                char len_buf[32];
+                snprintf(len_buf, sizeof(len_buf), "(i32.const %d)", repl_count);
+                wasm_emit_decode_slice(buf, len_buf);
+            }
+            break;
+
+        case EMIT_ALG: {
+            int idx = register_string_constant(alg->name->begin,
+                (size_t)(alg->name->end - alg->name->begin));
+            if (idx >= 0) wasm_emit_string_constant(idx);
+            break;
+        }
+
+        case EMIT_NAME: {
+            if (rule->rule_name != NULL) {
+                int idx = register_string_constant(rule->rule_name->begin,
+                    (size_t)(rule->rule_name->end - rule->rule_name->begin));
+                if (idx >= 0) wasm_emit_string_constant(idx);
+            }
+            break;
+        }
+        }
+    }
+
+    /* Call $emit(EMIT_BUFFER_BASE, length) */
+    snprintf(buf, sizeof(buf),
+        "(call $emit (i32.const %d) (i32.sub (local.get $emit_ptr) (i32.const %d)))",
+        EMIT_BUFFER_BASE, EMIT_BUFFER_BASE);
+    WL(buf);
+}
+
+/* ========================================================================
  * Algorithm codegen
  * ======================================================================== */
 
@@ -702,9 +1083,28 @@ void wasm_write_rule(algorithm_definition *alg, algorithm_rule *rule, size_t rul
     WL("(then");
     WI();
 
+    /* Save pre-substitution state for emit */
+    if (rule->has_emit) {
+        WL(";; Save pre-substitution state for emit");
+        WL("(local.set $match_start (local.get $i))");
+        WL("(local.set $pre_word_len (local.get $word_len))");
+        /* Copy matched letter indices to MATCH_SAVE_BASE */
+        for (int c = 0; c < pat_count; ++c) {
+            snprintf(buf, sizeof(buf),
+                "(i32.store8 (i32.const %d) (i32.load8_u (i32.add (local.get $word_ptr) (i32.add (local.get $i) (i32.const %d)))))",
+                MATCH_SAVE_BASE + c, c);
+            WL(buf);
+        }
+    }
+
     if (rule->is_terminal) {
         WL("(local.set $terminated (i32.const 1))");
         WL("(local.set $matched (i32.const 1))");
+
+        if (rule->has_emit) {
+            wasm_write_emit_code(alg, rule, pat_count, 0);
+        }
+
         snprintf(buf, sizeof(buf), "(br $rule%zu_done)", rule_num);
         WL(buf);
     } else {
@@ -754,6 +1154,11 @@ void wasm_write_rule(algorithm_definition *alg, algorithm_rule *rule, size_t rul
         }
 
         WL("(local.set $matched (i32.const 1))");
+
+        if (rule->has_emit) {
+            wasm_write_emit_code(alg, rule, pat_count, repl_count);
+        }
+
         snprintf(buf, sizeof(buf), "(br $rule%zu_done)", rule_num);
         WL(buf);
     }
@@ -805,6 +1210,12 @@ void wasm_write_algorithm(algorithm_definition *alg, size_t index) {
     WL("(local $i i32)         ;; Scan position");
     WL("(local $matched i32)   ;; Flag: did we match a rule?");
     WL("(local $terminated i32) ;; Flag: hit terminal rule?");
+
+    if (algorithm_has_emit_rules(alg)) {
+        WL("(local $emit_ptr i32)      ;; Emit buffer write position");
+        WL("(local $match_start i32)   ;; Saved match position for emit");
+        WL("(local $pre_word_len i32)  ;; Word length before substitution");
+    }
 
     /* Main Markov loop */
     WN();
@@ -878,6 +1289,122 @@ void wasm_write_algorithms(void) {
     wasm_write_context_algorithms(ctx);
 }
 
+/* Check if any algorithm call uses stdin (~) */
+static bool program_has_stdin_calls(void) {
+    program_context *ctx = context_root();
+    if (ctx == NULL) return false;
+    for (size_t i = 0; i < ctx->calls_count; i++) {
+        if (ctx->calls[i]->input_type == CALL_STDIN) return true;
+    }
+    return false;
+}
+
+/* Collect all algorithm calls from root context */
+static size_t program_call_count(void) {
+    program_context *ctx = context_root();
+    return ctx ? ctx->calls_count : 0;
+}
+
+#define CALL_SCRATCH_BASE 20480
+
+/* Generate the $_start function that sequences all algorithm calls */
+void wasm_write_start_function(void) {
+    program_context *ctx = context_root();
+    if (ctx == NULL || ctx->calls_count == 0) return;
+
+    char buf[1024];
+
+    WN();
+    WL(";; ========================================");
+    WL(";; Entry Point");
+    WL(";; ========================================");
+
+    WN();
+    WL("(func $_start (export \"_start\")");
+    WI();
+    WL("(local $scratch i32)");
+    WL("(local $byte_len i32)");
+    WL("(local $index_count i32)");
+    WL("(local $result_len i32)");
+    WN();
+
+    for (size_t c = 0; c < ctx->calls_count; c++) {
+        algorithm_call *call = ctx->calls[c];
+        if (call->algorithm_name == NULL) continue;
+
+        int name_len = (int)(call->algorithm_name->end - call->algorithm_name->begin);
+
+        snprintf(buf, sizeof(buf), ";; Call: %.*s(...)", name_len,
+            call->algorithm_name->begin);
+        WL(buf);
+
+        switch (call->input_type) {
+        case CALL_LITERAL: {
+            /* Write literal bytes to scratch area, call encode_word, call algorithm */
+            if (call->input_token == NULL) break;
+            /* Strip quotes from string literal */
+            const uint8_t *str = call->input_token->begin + 1;
+            size_t str_len = (call->input_token->end - call->input_token->begin) - 2;
+
+            /* Write literal bytes to CALL_SCRATCH_BASE */
+            snprintf(buf, sizeof(buf), "(local.set $scratch (i32.const %d))", CALL_SCRATCH_BASE);
+            WL(buf);
+            for (size_t i = 0; i < str_len; i++) {
+                /* Handle multi-byte UTF-8 */
+                snprintf(buf, sizeof(buf),
+                    "(i32.store8 (i32.add (local.get $scratch) (i32.const %zu)) (i32.const %d))",
+                    i, str[i]);
+                WL(buf);
+            }
+            snprintf(buf, sizeof(buf),
+                "(local.set $byte_len (i32.const %zu))", str_len);
+            WL(buf);
+
+            /* Encode raw bytes -> letter indices */
+            WL("(local.set $index_count (call $encode_word (local.get $scratch) (local.get $byte_len)))");
+
+            /* Call the algorithm */
+            snprintf(buf, sizeof(buf),
+                "(local.set $result_len (call $%.*s (i32.const %d) (local.get $index_count)))",
+                name_len, call->algorithm_name->begin, WORD_BUFFER_BASE);
+            WL(buf);
+            break;
+        }
+        case CALL_VARIABLE: {
+            /* Resolve variable to its word literal value at compile time.
+             * For now, treat the variable name as an identifier to look up.
+             * TODO: resolve word variables properly. For now, skip. */
+            WL(";; TODO: variable word input not yet implemented in codegen");
+            break;
+        }
+        case CALL_STDIN: {
+            /* Call $read host function to get input, then encode and run */
+            snprintf(buf, sizeof(buf), "(local.set $scratch (i32.const %d))", CALL_SCRATCH_BASE);
+            WL(buf);
+            snprintf(buf, sizeof(buf),
+                "(local.set $byte_len (call $read (local.get $scratch) (i32.const %d)))",
+                4096); /* max read size */
+            WL(buf);
+
+            /* Encode raw bytes -> letter indices */
+            WL("(local.set $index_count (call $encode_word (local.get $scratch) (local.get $byte_len)))");
+
+            /* Call the algorithm */
+            snprintf(buf, sizeof(buf),
+                "(local.set $result_len (call $%.*s (i32.const %d) (local.get $index_count)))",
+                name_len, call->algorithm_name->begin, WORD_BUFFER_BASE);
+            WL(buf);
+            break;
+        }
+        }
+
+        WN();
+    }
+
+    WD();
+    WL(")");
+}
+
 /* ========================================================================
  * Entry points
  * ======================================================================== */
@@ -895,6 +1422,40 @@ void wm_generate_s_statements(struct data *Data) {
 
     /* Build the global letter table from Data module */
     build_global_letter_table(Data);
+
+    /* Reset string constants table */
+    StringConstants.count = 0;
+    StringConstants.next_offset = 0;
+
+    /* Pre-register string constants for emit expressions.
+     * This must happen before WAT emission so we know data section content. */
+    bool has_emit = program_has_emit_rules();
+    if (has_emit) {
+        /* Walk all contexts and register algorithm/rule names referenced by emit rules */
+        program_context *stack[64];
+        int sp = 0;
+        program_context *root = context_root();
+        if (root) stack[sp++] = root;
+        while (sp > 0) {
+            program_context *c = stack[--sp];
+            for (size_t i = 0; i < c->algorithms_count; i++) {
+                algorithm_definition *a = c->algorithms[i];
+                if (a->name) {
+                    register_string_constant(a->name->begin,
+                        (size_t)(a->name->end - a->name->begin));
+                }
+                for (size_t j = 0; j < a->rules_count; j++) {
+                    if (a->rules[j]->rule_name) {
+                        register_string_constant(a->rules[j]->rule_name->begin,
+                            (size_t)(a->rules[j]->rule_name->end - a->rules[j]->rule_name->begin));
+                    }
+                }
+            }
+            for (size_t i = 0; i < c->content_count && sp < 64; i++) {
+                stack[sp++] = c->content[i];
+            }
+        }
+    }
 
     /* Build output filename */
     char name[256] = "./bin/";
@@ -919,17 +1480,60 @@ void wm_generate_s_statements(struct data *Data) {
     WN();
     WI();
 
+    /* Host imports */
+    bool has_stdin = program_has_stdin_calls();
+    bool has_calls = program_call_count() > 0;
+
+    if (has_emit || has_stdin || has_calls) {
+        WN();
+        WL(";; Host imports");
+    }
+    if (has_emit) {
+        WL("(import \"env\" \"emit\" (func $emit (param i32 i32)))");
+    }
+    if (has_stdin) {
+        WL("(import \"env\" \"read\" (func $read (param i32 i32) (result i32)))");
+    }
+
     /* Memory declaration */
     wasm_write_memory();
 
     /* Letter data sections (string data + offset table) */
     wasm_write_letter_data(Data);
 
+    /* String constant data section for emit expressions */
+    if (StringConstants.count > 0) {
+        char buf[512];
+        WN();
+        WL(";; String constants for emit expressions");
+        for (int i = 0; i < StringConstants.count; i++) {
+            Wat.indent();
+            snprintf(buf, sizeof(buf), "(data (i32.const %zu) \"",
+                StringConstants.entries[i].wasm_offset);
+            Wat.str(buf);
+            for (size_t j = 0; j < StringConstants.entries[i].len; j++) {
+                snprintf(buf, sizeof(buf), "\\%02x",
+                    StringConstants.entries[i].bytes[j]);
+                Wat.str(buf);
+            }
+            snprintf(buf, sizeof(buf), "\")  ;; \"%.*s\"",
+                (int)StringConstants.entries[i].len,
+                StringConstants.entries[i].bytes);
+            Wat.str(buf);
+            WN();
+        }
+    }
+
     /* Helper functions */
     wasm_write_helper_functions();
 
     /* Algorithm functions (recursive traversal of all contexts) */
     wasm_write_algorithms();
+
+    /* Entry point ($_start) if there are algorithm calls */
+    if (has_calls) {
+        wasm_write_start_function();
+    }
 
     /* Close module */
     WD();

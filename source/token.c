@@ -45,7 +45,8 @@ uint8_t *identifier(uint8_t *head) {
         && single_byte_token(*head) == TOKEN_UNKNOWN
         && *head != '\n'
         && *head != ':'   /* stop before :: */
-        && *head != '-')  /* stop before -> and -. */
+        && *head != '-'   /* stop before -> and -. */
+        && *head != '~')  /* stop before ~> and ~. */
     {
         int sp = utf8_code_point_length(*head);
         if (sp == 0) {
@@ -95,7 +96,7 @@ uint8_t *string_literal(uint8_t *head, uint8_t *end) {
     return rv;
 }
 
-#define MB_TOKS 8
+#define MB_TOKS 10
 #define MB_TOKS_OFFSET 4
 
 static uint8_t multi_byte_tokens[MB_TOKS * MB_TOKS_OFFSET] = {
@@ -107,6 +108,8 @@ static uint8_t multi_byte_tokens[MB_TOKS * MB_TOKS_OFFSET] = {
     "∩\t"
     "->\t "
     "-.\t "
+    "~>\t "
+    "~.\t "
 };
 
 uint16_t multi_byte_token(uint8_t *s, uint8_t *end) {
@@ -188,6 +191,8 @@ lexical_token single_byte_token(uint8_t c) {
     case '+': return TOKEN_PLUS;
     case '(': return TOKEN_LPAREN;
     case ')': return TOKEN_RPAREN;
+    case ':': return TOKEN_COLON;
+    case '~': return TOKEN_TILDE;
     default: return TOKEN_UNKNOWN;
     }
 }

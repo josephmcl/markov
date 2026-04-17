@@ -1,6 +1,12 @@
 #include "context.h"
 #include "codepoint.h"
 
+/* Forward declarations for context update functions in subdirectories */
+extern syntax_store *_update_context_algorithm(
+    syntax_store *, program_context_info *, program_context *);
+extern syntax_store *_update_context_algorithm_call(
+    syntax_store *, program_context_info *, program_context *);
+
 #define PROGRAM_CONTEXT_SIZE 64
 
 program_context *TheContext = NULL;
@@ -98,6 +104,9 @@ syntax_store *_update_context_scope(syntax_store *store) {
     current->algorithms_count = 0;
     current->algorithms_capacity = 0;
     current->algorithms = NULL;
+    current->calls_count = 0;
+    current->calls_capacity = 0;
+    current->calls = NULL;
     bool found = false;
     lexical_store *letter, *capture_lstore;
     syntax_store *capture_store;
@@ -221,6 +230,8 @@ syntax_store *update_program_context(syntax_store *store) {
         return _update_context_variable(store, &TheInfo, TheContext);
     case ast_algorithm:
         return _update_context_algorithm(store, &TheInfo, TheContext);
+    case ast_algorithm_call:
+        return _update_context_algorithm_call(store, &TheInfo, TheContext);
     default:
         return NULL; }
 }
@@ -685,19 +696,35 @@ void validate_program_context (void) {
                 int alph_size = (int)(alph_lex->end - alph_lex->begin);
                 printf("| | alphabet (%.*s)\n", alph_size, alph_lex->begin);
             }
-            if (alg->word_param != NULL) {
-                int param_size = (int)(alg->word_param->end - alg->word_param->begin);
-                printf("| | word_param (%.*s)\n", param_size, alg->word_param->begin);
-            }
             printf("| | rules (%lu)\n", alg->rules_count);
             for (size_t k = 0; k < alg->rules_count; ++k) {
                 algorithm_rule *rule = alg->rules[k];
-                if (rule->is_terminal) {
-                    printf("| | | [terminal] pattern -> halt\n");
-                } else {
-                    printf("| | | [substitution] pattern -> replacement\n");
+                const char *type = rule->is_terminal ? "terminal" : "substitution";
+                const char *emit = rule->has_emit ? " emit" : "";
+                printf("| | | [%s%s]", type, emit);
+                if (rule->rule_name != NULL) {
+                    int rn_size = (int)(rule->rule_name->end - rule->rule_name->begin);
+                    printf(" name(%.*s)", rn_size, rule->rule_name->begin);
                 }
+                if (rule->emit_string != NULL) {
+                    int es_size = (int)(rule->emit_string->end - rule->emit_string->begin);
+                    printf(" emit(%.*s)", es_size, rule->emit_string->begin);
+                }
+                printf("\n");
             }
+        }
+        printf("| calls (%lu)\n", TheContext[i].calls_count);
+        for (size_t j = 0; j < TheContext[i].calls_count; ++j) {
+            algorithm_call *call = TheContext[i].calls[j];
+            int name_size = (int)(call->algorithm_name->end - call->algorithm_name->begin);
+            printf("| | %.*s(", name_size, call->algorithm_name->begin);
+            if (call->input_type == CALL_STDIN) {
+                printf("~");
+            } else if (call->input_token != NULL) {
+                int tok_size = (int)(call->input_token->end - call->input_token->begin);
+                printf("%.*s", tok_size, call->input_token->begin);
+            }
+            printf(")\n");
         }
         printf("\n");
     }

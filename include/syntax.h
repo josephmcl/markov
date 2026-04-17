@@ -35,10 +35,13 @@ typedef enum {
     ast_abstract_size,       // [N] - abstract alphabet with N letters
     ast_abstract_alphabet,   // [N] + {concrete} - abstract + concrete combination
     // Algorithm types
-    ast_algorithm,           // A::B (C) { rules } - algorithm definition
+    ast_algorithm,           // A::B { rules } - algorithm definition
     ast_algorithm_rules,     // list of rules in algorithm body
-    ast_algorithm_rule,      // P -> Q or P -. (substitution rule)
+    ast_algorithm_rule,      // P -> Q or P -. (substitution/terminal rule)
     ast_pattern,             // sequence of letters (left side of rule)
+    ast_rule_name,           // optional name prefix on algorithm rule
+    ast_emit_expression,     // emit string with ~interpolation
+    ast_algorithm_call,      // swap("□□■"), swap(w), swap(~) — algorithm invocation
 } syntax_store_type;
 
 typedef struct {

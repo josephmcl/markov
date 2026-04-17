@@ -130,8 +130,7 @@ syntax_store *_update_context_algorithm(
     /* Extract algorithm components from AST:
        content[0] = algorithm name (ast_variable)
        content[1] = alphabet variable (ast_variable)
-       content[2] = word parameter (ast_variable)
-       content[3] = rules (ast_algorithm_rules) */
+       content[2] = rules (ast_algorithm_rules) */
 
     if (store->size >= 1 && store->content[0] != NULL) {
         alg->name = Lex.store(store->content[0]->token_index);
@@ -145,15 +144,9 @@ syntax_store *_update_context_algorithm(
         alg->alphabet_ref = NULL;
     }
 
-    if (store->size >= 3 && store->content[2] != NULL) {
-        alg->word_param = Lex.store(store->content[2]->token_index);
-    } else {
-        alg->word_param = NULL;
-    }
-
     /* Process rules */
-    if (store->size >= 4 && store->content[3] != NULL) {
-        syntax_store *rules_node = store->content[3];
+    if (store->size >= 3 && store->content[2] != NULL) {
+        syntax_store *rules_node = store->content[2];
 
         for (size_t i = 0; i < rules_node->size; ++i) {
             syntax_store *rule_node = rules_node->content[i];
@@ -164,20 +157,35 @@ syntax_store *_update_context_algorithm(
             algorithm_rule *rule = algorithm_rule_push(alg);
             rule->store = rule_node;
 
-            /* Rule content[0] is always the pattern (left side)
-               Rule content[1] is the replacement (right side), if present */
-            if (rule_node->size >= 1) {
-                rule->pattern = rule_node->content[0];
+            /* AST content layout (uniform, size=4):
+               content[0] = LHS pattern (always)
+               content[1] = RHS replacement (NULL for terminal)
+               content[2] = rule name node (NULL if unnamed)
+               content[3] = emit string node (NULL if silent/default)
+               token_index = arrow token (ARROW/TERMINAL/EMIT_ARROW/EMIT_TERMINAL) */
+
+            rule->pattern = (rule_node->size >= 1) ? rule_node->content[0] : NULL;
+            rule->replacement = (rule_node->size >= 2) ? rule_node->content[1] : NULL;
+
+            /* Determine rule type from arrow token */
+            lexical_store *arrow_tok = Lex.store(rule_node->token_index);
+            rule->is_terminal = (arrow_tok->token == TOKEN_TERMINAL ||
+                                 arrow_tok->token == TOKEN_EMIT_TERMINAL);
+            rule->has_emit = (arrow_tok->token == TOKEN_EMIT_ARROW ||
+                              arrow_tok->token == TOKEN_EMIT_TERMINAL);
+
+            /* Rule name (content[2]) */
+            if (rule_node->size >= 3 && rule_node->content[2] != NULL) {
+                rule->rule_name = Lex.store(rule_node->content[2]->token_index);
             } else {
-                rule->pattern = NULL;
+                rule->rule_name = NULL;
             }
 
-            if (rule_node->size >= 2) {
-                rule->replacement = rule_node->content[1];
-                rule->is_terminal = false;
+            /* Emit string (content[3]) */
+            if (rule_node->size >= 4 && rule_node->content[3] != NULL) {
+                rule->emit_string = Lex.store(rule_node->content[3]->token_index);
             } else {
-                rule->replacement = NULL;
-                rule->is_terminal = true;
+                rule->emit_string = NULL;
             }
         }
     }
@@ -187,5 +195,86 @@ syntax_store *_update_context_algorithm(
         _context_push_algorithm(&context[index], alg);
     }
 
+    return NULL;
+}
+
+/* ======================================================================== */
+/* Algorithm call handling                                                   */
+/* ======================================================================== */
+
+#define CONTEXT_CALLS_SIZE 16
+
+static algorithm_call *TheAlgorithmCalls = NULL;
+static size_t TheCallCount = 0;
+static size_t TheCallCapacity = 0;
+
+static algorithm_call *algorithm_call_push(void) {
+    if (TheCallCount == TheCallCapacity) {
+        TheCallCapacity += CONTEXT_CALLS_SIZE;
+        TheAlgorithmCalls = (algorithm_call *)
+            realloc(TheAlgorithmCalls, sizeof(algorithm_call) * TheCallCapacity);
+    }
+    return &TheAlgorithmCalls[TheCallCount++];
+}
+
+static void _context_push_call(program_context *ctx, algorithm_call *call) {
+    size_t bytes;
+    if (ctx->calls_count == ctx->calls_capacity) {
+        ctx->calls_capacity += CONTEXT_CALLS_SIZE;
+        bytes = sizeof(algorithm_call *) * ctx->calls_capacity;
+        ctx->calls = (algorithm_call **) realloc(ctx->calls, bytes);
+    }
+    ctx->calls[ctx->calls_count++] = call;
+}
+
+syntax_store *_update_context_algorithm_call(
+    syntax_store         *store,
+    program_context_info *info,
+    program_context      *context) {
+
+    /* Find the enclosing scope context (same logic as algorithms) */
+    syntax_store *topic = store;
+    while (topic != NULL
+           && topic->type != ast_scope
+           && topic->type != ast_program) {
+        topic = topic->topic;
+    }
+    if (topic == NULL) return NULL;
+
+    size_t index = info->count;
+    for (size_t i = 0; i < info->count; ++i) {
+        if (topic == context[i].syntax) {
+            index = i;
+            break;
+        }
+    }
+    if (index == info->count) return NULL;
+
+    /* Extract call info from AST:
+       content[0] = algorithm name (ast_variable)
+       content[1] = argument (ast_word_literal, ast_variable, or NULL for stdin) */
+    algorithm_call *call = algorithm_call_push();
+    call->store = store;
+
+    if (store->size >= 1 && store->content[0] != NULL) {
+        call->algorithm_name = Lex.store(store->content[0]->token_index);
+    } else {
+        call->algorithm_name = NULL;
+    }
+
+    if (store->size >= 2 && store->content[1] != NULL) {
+        syntax_store *arg = store->content[1];
+        call->input_token = Lex.store(arg->token_index);
+        if (arg->type == ast_word_literal) {
+            call->input_type = CALL_LITERAL;
+        } else {
+            call->input_type = CALL_VARIABLE;
+        }
+    } else {
+        call->input_type = CALL_STDIN;
+        call->input_token = NULL;
+    }
+
+    _context_push_call(&context[index], call);
     return NULL;
 }
