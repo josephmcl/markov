@@ -1263,12 +1263,102 @@ void wasm_write_algorithm(algorithm_definition *alg, size_t index) {
     WL(")");
 }
 
+/* Write a step function for an algorithm — applies one Markov iteration */
+void wasm_write_algorithm_step(algorithm_definition *alg, size_t index) {
+    if (alg == NULL || alg->name == NULL) return;
+
+    char buf[512];
+    int name_len = (int)(alg->name->end - alg->name->begin);
+
+    WN();
+    Wat.indent();
+    Wat.str(";; Step function: ");
+    Wat.s((const char *)alg->name->begin, name_len);
+    WN();
+
+    /* Function signature */
+    Wat.indent();
+    Wat.str("(func $");
+    Wat.s((const char *)alg->name->begin, name_len);
+    Wat.str("_step (export \"");
+    Wat.s((const char *)alg->name->begin, name_len);
+    Wat.str("_step\")");
+    WN();
+
+    WI();
+    WL("(param $word_ptr i32)  ;; Pointer to letter-index encoded word");
+    WL("(param $word_len i32)  ;; Number of letters (not bytes)");
+    WL("(result i32)           ;; Returns new letter count (status in global)");
+
+    /* Local variables */
+    WN();
+    WL("(local $i i32)         ;; Scan position");
+    WL("(local $matched i32)   ;; Flag: did we match a rule?");
+    WL("(local $terminated i32) ;; Flag: hit terminal rule?");
+
+    if (algorithm_has_emit_rules(alg)) {
+        WL("(local $emit_ptr i32)      ;; Emit buffer write position");
+        WL("(local $match_start i32)   ;; Saved match position for emit");
+        WL("(local $pre_word_len i32)  ;; Word length before substitution");
+    }
+
+    /* No outer loop — just one pass through all rules */
+    WN();
+    WL(";; Single iteration: try all rules, fire first match");
+    WL("(local.set $matched (i32.const 0))");
+    WL("(local.set $terminated (i32.const 0))");
+
+    /* Generate code for each rule (same as full algorithm) */
+    for (size_t r = 0; r < alg->rules_count; ++r) {
+        algorithm_rule *rule = alg->rules[r];
+        if (rule == NULL) continue;
+
+        if (r > 0) {
+            WN();
+            WL(";; Skip if already matched");
+            WL("(if (i32.eqz (local.get $matched)) (then");
+            WI();
+        }
+
+        wasm_write_rule(alg, rule, r + 1);
+    }
+
+    /* Close the nested if blocks for rules 2..N */
+    for (size_t r = 1; r < alg->rules_count; ++r) {
+        WD();
+        WL("))");
+    }
+
+    /* Set step_status global: 0=matched, 1=terminated, 2=no_match */
+    WN();
+    WL(";; Set step status");
+    WL("(if (local.get $terminated)");
+    WI();
+    WL("(then (global.set $step_status (i32.const 1)))");
+    WD();
+    WL("(else (if (local.get $matched)");
+    WI();
+    WL("(then (global.set $step_status (i32.const 0)))");
+    WD();
+    WL("(else (global.set $step_status (i32.const 2)))");
+    WL("))");
+    WL(")");
+
+    /* Return word length */
+    WN();
+    WL("(local.get $word_len)");
+
+    WD();
+    WL(")");
+}
+
 /* Recursively write algorithms from a context and all nested contexts */
 void wasm_write_context_algorithms(program_context *ctx) {
     if (ctx == NULL) return;
 
     for (size_t i = 0; i < ctx->algorithms_count; ++i) {
         wasm_write_algorithm(ctx->algorithms[i], i);
+        wasm_write_algorithm_step(ctx->algorithms[i], i);
     }
 
     for (size_t i = 0; i < ctx->content_count; ++i) {
@@ -1497,6 +1587,11 @@ void wm_generate_s_statements(struct data *Data) {
 
     /* Memory declaration */
     wasm_write_memory();
+
+    /* Step status global for streaming execution */
+    WN();
+    WL(";; Step status: 0=matched, 1=terminated, 2=no_match");
+    WL("(global $step_status (export \"step_status\") (mut i32) (i32.const 2))");
 
     /* Letter data sections (string data + offset table) */
     wasm_write_letter_data(Data);
