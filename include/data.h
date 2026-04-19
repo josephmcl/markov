@@ -12,6 +12,7 @@ struct data {
     void     ( *generate)      (
         const struct lex    *Lex,
         const struct syntax *Syntax);
+    void     ( *free)          (void);
 };
 
 extern const struct data Data;

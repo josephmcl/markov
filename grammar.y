@@ -82,6 +82,7 @@
 
 /* Precedence: lowest to highest (later = higher precedence) */
 /* IN/EN_IN have lowest precedence so "x in A extends B" = "x in (A extends B)" */
+%right BIND
 %left IN EN_IN
 %left EXTENDS EN_EXTENDS
 %left UNION EN_UNION
@@ -94,6 +95,11 @@
 %token EMIT_TERMINAL
 %token COLON
 %token TILDE
+%token BIND
+%token RULE_EQ
+%token APPROX
+%token DOUBLE_TILDE
+%token EXCLAIM
 %token LPAREN
 %token RPAREN
 
@@ -123,11 +129,20 @@
 %type<yuck> word_in_expression
 %type<yuck> abstract_size
 %type<yuck> abstract_alphabet
+%type<yuck> range_literal
+%type<yuck> range_function
+%type<yuck> abstract_named
+%type<yuck> abstract_name_list
 %type<yuck> algorithm
 %type<yuck> algorithm_name
 %type<yuck> algorithm_rules
 %type<yuck> algorithm_rule
 %type<yuck> algorithm_call
+%type<yuck> equivalence_statement
+%type<yuck> bind_expression
+%type<yuck> bind_rule
+%type<yuck> bind_rules_list
+%type<yuck> bind_rules_value
 %type<yuck> pattern
 %type<yuck> IDENTIFIER
 %type<yuck> STRING_LITERAL
@@ -220,6 +235,7 @@ statement
     | scope                { $$ = $1; }
     | algorithm            { $$ = $1; }
     | algorithm_call       { $$ = $1; }
+    | equivalence_statement { $$ = $1; }
     ;
 scope 
     : scope_export scope_module scope_name LCURL statements RCURL {
@@ -293,6 +309,11 @@ r_expression
     | word_in_expression { $$ = $1; }
     | abstract_size { $$ = $1; }
     | abstract_alphabet { $$ = $1; }
+    | abstract_named { $$ = $1; }
+    | range_literal { $$ = $1; }
+    | range_function { $$ = $1; }
+    | bind_expression { $$ = $1; }
+    | bind_rules_value { $$ = $1; }
     | variable { $$ = $1; }
     ;
 extends_expression
@@ -492,6 +513,51 @@ word_in_expression
         $$ = s;
     }
     ;
+range_literal
+    : NUMBER PERIOD PERIOD NUMBER {
+        /* 0..5 — range of integers, step 1
+           content[0] = start (ast_variable with NUMBER token)
+           content[1] = end (ast_variable with NUMBER token) */
+        syntax_store *s = Syntax.push();
+        s->type = ast_range_literal;
+        s->token_index = @1.first_column;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        syntax_store *start = Syntax.push();
+        start->type = ast_variable; start->token_index = @1.first_column;
+        start->size = 0; start->content = NULL;
+        syntax_store *end = Syntax.push();
+        end->type = ast_variable; end->token_index = @4.first_column;
+        end->size = 0; end->content = NULL;
+        s->content[0] = start; start->topic = s;
+        s->content[1] = end; end->topic = s;
+        $$ = s;
+    }
+    ;
+range_function
+    : IDENTIFIER LPAREN NUMBER COMMA NUMBER COMMA NUMBER RPAREN {
+        /* range(0, 10, 2) — range with explicit step
+           content[0] = start, content[1] = end, content[2] = step */
+        syntax_store *s = Syntax.push();
+        s->type = ast_range_function;
+        s->token_index = @1.first_column;
+        s->size = 3;
+        s->content = malloc(sizeof(syntax_store *) * 3);
+        syntax_store *start = Syntax.push();
+        start->type = ast_variable; start->token_index = @3.first_column;
+        start->size = 0; start->content = NULL;
+        syntax_store *end = Syntax.push();
+        end->type = ast_variable; end->token_index = @5.first_column;
+        end->size = 0; end->content = NULL;
+        syntax_store *step = Syntax.push();
+        step->type = ast_variable; step->token_index = @7.first_column;
+        step->size = 0; step->content = NULL;
+        s->content[0] = start; start->topic = s;
+        s->content[1] = end; end->topic = s;
+        s->content[2] = step; step->topic = s;
+        $$ = s;
+    }
+    ;
 abstract_size
     : LBRACKET NUMBER RBRACKET {
         syntax_store *s = Syntax.push();
@@ -516,6 +582,50 @@ abstract_alphabet
         $$ = s;
     }
     ;
+abstract_named
+    : LBRACKET abstract_name_list RBRACKET {
+        /* [greater, lesser] — abstract alphabet with named positions */
+        syntax_store *list = (syntax_store *) $2;
+        syntax_store *s = Syntax.push();
+        s->type = ast_abstract_named;
+        s->token_index = @1.first_column;
+        s->size = list->size;
+        s->content = list->content;
+        for (size_t i = 0; i < s->size; i++) {
+            if (s->content[i]) s->content[i]->topic = s;
+        }
+        $$ = s;
+    }
+    ;
+abstract_name_list
+    : IDENTIFIER COMMA IDENTIFIER {
+        /* First two names — need at least 2 for an abstract alphabet */
+        syntax_store *s = Syntax.push();
+        s->type = ast_abstract_named;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        syntax_store *n1 = Syntax.push();
+        n1->type = ast_variable; n1->token_index = @1.first_column;
+        n1->size = 0; n1->content = NULL;
+        syntax_store *n2 = Syntax.push();
+        n2->type = ast_variable; n2->token_index = @3.first_column;
+        n2->size = 0; n2->content = NULL;
+        s->content[0] = n1;
+        s->content[1] = n2;
+        $$ = s;
+    }
+    | abstract_name_list COMMA IDENTIFIER {
+        syntax_store *list = (syntax_store *) $1;
+        syntax_store *name = Syntax.push();
+        name->type = ast_variable;
+        name->token_index = @3.first_column;
+        name->size = 0; name->content = NULL;
+        list->size += 1;
+        list->content = realloc(list->content, sizeof(syntax_store *) * list->size);
+        list->content[list->size - 1] = name;
+        $$ = list;
+    }
+    ;
 algorithm_name
     : IDENTIFIER {
         syntax_store *s = Syntax.push();
@@ -528,7 +638,7 @@ algorithm_name
     ;
 algorithm
     : algorithm_name DOUBLE_COLON variable LCURL algorithm_rules RCURL {
-        /* A::B { rules }
+        /* A::B { rules } — concrete alphabet
            content[0] = algorithm name (ast_variable)
            content[1] = alphabet variable (ast_variable)
            content[2] = rules (ast_algorithm_rules) */
@@ -538,7 +648,7 @@ algorithm
         syntax_store *rules = (syntax_store *) $5;
 
         s->type = ast_algorithm;
-        s->token_index = @1.first_column;  /* Use algorithm name's token */
+        s->token_index = @1.first_column;
         s->size = 3;
         s->content = malloc(sizeof(syntax_store *) * 3);
         s->content[0] = name;
@@ -549,6 +659,99 @@ algorithm
         if (alphabet_var != NULL) alphabet_var->topic = s;
         if (rules != NULL) rules->topic = s;
 
+        $$ = s;
+    }
+    | algorithm_name DOUBLE_COLON abstract_size LCURL algorithm_rules RCURL {
+        /* A::[N] { rules } — abstract alphabet
+           content[0] = algorithm name (ast_variable)
+           content[1] = abstract size (ast_abstract_size)
+           content[2] = rules (ast_algorithm_rules) */
+        syntax_store *s = Syntax.push();
+        syntax_store *name = (syntax_store *) $1;
+        syntax_store *abstract_alph = (syntax_store *) $3;
+        syntax_store *rules = (syntax_store *) $5;
+
+        s->type = ast_algorithm;
+        s->token_index = @1.first_column;
+        s->size = 3;
+        s->content = malloc(sizeof(syntax_store *) * 3);
+        s->content[0] = name;
+        s->content[1] = abstract_alph;
+        s->content[2] = rules;
+
+        name->topic = s;
+        abstract_alph->topic = s;
+        if (rules != NULL) rules->topic = s;
+
+        $$ = s;
+    }
+    | algorithm_name DOUBLE_COLON abstract_named LCURL algorithm_rules RCURL {
+        /* A::[greater, lesser] { rules } — named abstract alphabet
+           content[0] = algorithm name (ast_variable)
+           content[1] = named abstract (ast_abstract_named)
+           content[2] = rules (ast_algorithm_rules) */
+        syntax_store *s = Syntax.push();
+        syntax_store *name = (syntax_store *) $1;
+        syntax_store *abstract_alph = (syntax_store *) $3;
+        syntax_store *rules = (syntax_store *) $5;
+
+        s->type = ast_algorithm;
+        s->token_index = @1.first_column;
+        s->size = 3;
+        s->content = malloc(sizeof(syntax_store *) * 3);
+        s->content[0] = name;
+        s->content[1] = abstract_alph;
+        s->content[2] = rules;
+
+        name->topic = s;
+        abstract_alph->topic = s;
+        if (rules != NULL) rules->topic = s;
+
+        $$ = s;
+    }
+    | algorithm_name DOUBLE_COLON LBRACKET r_expression RBRACKET TILDE IDENTIFIER {
+        /* sort ::[0..5]~ bsort — bounded observational equivalence */
+        syntax_store *s = Syntax.push();
+        s->type = ast_equivalence;
+        s->token_index = @6.first_column;
+        s->size = 3;
+        s->content = malloc(sizeof(syntax_store *) * 3);
+        s->content[0] = (syntax_store *) $1; s->content[0]->topic = s;
+        syntax_store *right = Syntax.push();
+        right->type = ast_variable; right->token_index = @7.first_column;
+        right->size = 0; right->content = NULL;
+        s->content[1] = right; right->topic = s;
+        s->content[2] = (syntax_store *) $4; s->content[2]->topic = s;
+        $$ = s;
+    }
+    | algorithm_name DOUBLE_COLON LBRACKET r_expression RBRACKET APPROX IDENTIFIER {
+        /* sort ::[0..5]≈ bsort — bounded bisimulation */
+        syntax_store *s = Syntax.push();
+        s->type = ast_equivalence;
+        s->token_index = @6.first_column;
+        s->size = 3;
+        s->content = malloc(sizeof(syntax_store *) * 3);
+        s->content[0] = (syntax_store *) $1; s->content[0]->topic = s;
+        syntax_store *right = Syntax.push();
+        right->type = ast_variable; right->token_index = @7.first_column;
+        right->size = 0; right->content = NULL;
+        s->content[1] = right; right->topic = s;
+        s->content[2] = (syntax_store *) $4; s->content[2]->topic = s;
+        $$ = s;
+    }
+    | algorithm_name DOUBLE_COLON LBRACKET r_expression RBRACKET DOUBLE_TILDE IDENTIFIER {
+        /* sort ::[0..5]~~ bsort — ASCII bounded bisimulation */
+        syntax_store *s = Syntax.push();
+        s->type = ast_equivalence;
+        s->token_index = @6.first_column;
+        s->size = 3;
+        s->content = malloc(sizeof(syntax_store *) * 3);
+        s->content[0] = (syntax_store *) $1; s->content[0]->topic = s;
+        syntax_store *right = Syntax.push();
+        right->type = ast_variable; right->token_index = @7.first_column;
+        right->size = 0; right->content = NULL;
+        s->content[1] = right; right->topic = s;
+        s->content[2] = (syntax_store *) $4; s->content[2]->topic = s;
         $$ = s;
     }
     ;
@@ -849,4 +1052,193 @@ algorithm_call
         s->content[1] = NULL;
         $$ = s;
     }
+    | IDENTIFIER LPAREN algorithm_call RPAREN {
+        /* sort(reverse("□□■")) — composed algorithm call
+           content[0] = outer algorithm name (ast_variable)
+           content[1] = inner algorithm call (ast_algorithm_call) */
+        syntax_store *s = Syntax.push();
+        syntax_store *name = Syntax.push();
+        name->type = ast_variable;
+        name->token_index = @1.first_column;
+        name->size = 0; name->content = NULL;
+        s->type = ast_algorithm_call;
+        s->token_index = @1.first_column;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = name; name->topic = s;
+        s->content[1] = (syntax_store *) $3; s->content[1]->topic = s;
+        $$ = s;
+    }
     ;
+bind_rules_value
+    : LCURL bind_rules_list RCURL {
+        /* {a:□, b:■} — bind rules as a standalone value */
+        $$ = $2;
+    }
+    ;
+bind_expression
+    : r_expression BIND r_expression {
+        /* [2] :> {□, ■} — universal bind
+           content[0] = source alphabet (abstract or concrete)
+           content[1] = target alphabet
+           content[2] = NULL (universal, no rules) */
+        syntax_store *s = Syntax.push();
+        s->type = ast_bind_expression;
+        s->token_index = @2.first_column;
+        s->size = 3;
+        s->content = malloc(sizeof(syntax_store *) * 3);
+        s->content[0] = (syntax_store *) $1; s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $3; s->content[1]->topic = s;
+        s->content[2] = NULL;
+        $$ = s;
+    }
+    | r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression {
+        /* [2] :[a:□, b:■]> {□, ■} — specified bind
+           content[0] = source alphabet
+           content[1] = target alphabet
+           content[2] = bind rules list */
+        syntax_store *s = Syntax.push();
+        s->type = ast_bind_expression;
+        s->token_index = @2.first_column;
+        s->size = 3;
+        s->content = malloc(sizeof(syntax_store *) * 3);
+        s->content[0] = (syntax_store *) $1; s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $7; s->content[1]->topic = s;
+        s->content[2] = (syntax_store *) $4; s->content[2]->topic = s;
+        $$ = s;
+    }
+    ;
+bind_rules_list
+    : bind_rule {
+        syntax_store *s = Syntax.push();
+        s->type = ast_bind_rules_list;
+        s->size = 1;
+        s->content = malloc(sizeof(syntax_store *));
+        s->content[0] = (syntax_store *) $1;
+        s->content[0]->topic = s;
+        $$ = s;
+    }
+    | IDENTIFIER {
+        /* r — named bind rules variable reference.
+           Wraps IDENTIFIER as a single-entry bind_rules_list with ast_variable.
+           Context layer resolves this to the named bind rules. */
+        syntax_store *s = Syntax.push();
+        s->type = ast_bind_rules_list;
+        s->size = 1;
+        s->content = malloc(sizeof(syntax_store *));
+        syntax_store *var = Syntax.push();
+        var->type = ast_variable;
+        var->token_index = @1.first_column;
+        var->size = 0; var->content = NULL;
+        s->content[0] = var; var->topic = s;
+        $$ = s;
+    }
+    | bind_rules_list COMMA bind_rule {
+        syntax_store *list = (syntax_store *) $1;
+        syntax_store *rule = (syntax_store *) $3;
+        list->size += 1;
+        list->content = realloc(list->content, sizeof(syntax_store *) * list->size);
+        list->content[list->size - 1] = rule;
+        rule->topic = list;
+        $$ = list;
+    }
+    ;
+bind_rule
+    : IDENTIFIER COLON IDENTIFIER {
+        /* a:□ — map abstract position to concrete letter */
+        syntax_store *s = Syntax.push();
+        s->type = ast_bind_rule;
+        s->token_index = @1.first_column;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        syntax_store *src = Syntax.push();
+        src->type = ast_variable; src->token_index = @1.first_column;
+        src->size = 0; src->content = NULL;
+        syntax_store *tgt = Syntax.push();
+        tgt->type = ast_variable; tgt->token_index = @3.first_column;
+        tgt->size = 0; tgt->content = NULL;
+        s->content[0] = src; src->topic = s;
+        s->content[1] = tgt; tgt->topic = s;
+        $$ = s;
+    }
+    | IDENTIFIER COLON {
+        /* △: — inert (letter passes through unchanged) */
+        syntax_store *s = Syntax.push();
+        s->type = ast_bind_rule;
+        s->token_index = @1.first_column;
+        s->size = 1;
+        s->content = malloc(sizeof(syntax_store *));
+        syntax_store *src = Syntax.push();
+        src->type = ast_variable; src->token_index = @1.first_column;
+        src->size = 0; src->content = NULL;
+        s->content[0] = src; src->topic = s;
+        $$ = s;
+    }
+    | IDENTIFIER PERIOD IDENTIFIER {
+        /* c.b — collapse (c maps to same as b) */
+        syntax_store *s = Syntax.push();
+        s->type = ast_bind_rule;
+        s->token_index = @2.first_column;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        syntax_store *src = Syntax.push();
+        src->type = ast_variable; src->token_index = @1.first_column;
+        src->size = 0; src->content = NULL;
+        syntax_store *tgt = Syntax.push();
+        tgt->type = ast_variable; tgt->token_index = @3.first_column;
+        tgt->size = 0; tgt->content = NULL;
+        s->content[0] = src; src->topic = s;
+        s->content[1] = tgt; tgt->topic = s;
+        $$ = s;
+    }
+    | EXCLAIM IDENTIFIER {
+        /* !d — error (halt if encountered) */
+        syntax_store *s = Syntax.push();
+        s->type = ast_bind_rule;
+        s->token_index = @1.first_column;
+        s->size = 1;
+        s->content = malloc(sizeof(syntax_store *));
+        syntax_store *src = Syntax.push();
+        src->type = ast_variable; src->token_index = @2.first_column;
+        src->size = 0; src->content = NULL;
+        s->content[0] = src; src->topic = s;
+        $$ = s;
+    }
+    ;
+equivalence_statement
+    : algorithm_name RULE_EQ algorithm_name {
+        /* sort ::= bsort — rule equivalence
+           content[0] = left, content[1] = right, content[2] = range, content[3] = emit */
+        syntax_store *s = Syntax.push();
+        s->type = ast_equivalence;
+        s->token_index = @2.first_column;
+        s->size = 4;
+        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->content[0] = (syntax_store *) $1; s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $3; s->content[1]->topic = s;
+        s->content[2] = NULL;
+        s->content[3] = NULL;
+        $$ = s;
+    }
+    | algorithm_name RULE_EQ algorithm_name COLON STRING_LITERAL {
+        /* sort ::= bsort : "~result" — with emit */
+        syntax_store *s = Syntax.push();
+        syntax_store *emit = Syntax.push();
+        emit->type = ast_emit_expression;
+        emit->token_index = @5.first_column;
+        emit->size = 0; emit->content = NULL;
+        s->type = ast_equivalence;
+        s->token_index = @2.first_column;
+        s->size = 4;
+        s->content = malloc(sizeof(syntax_store *) * 4);
+        s->content[0] = (syntax_store *) $1; s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $3; s->content[1]->topic = s;
+        s->content[2] = NULL;
+        s->content[3] = emit; emit->topic = s;
+        $$ = s;
+    }
+    ;
+
+/* Bounded equivalence forms (sort ::[r]~ bsort) are in the
+   algorithm production since they share the algorithm_name DOUBLE_COLON
+   prefix. See the algorithm production above. */

@@ -15,6 +15,7 @@
 
 struct context {
     void ( *validate) (void);
+    void ( *free)     (void);
 };
 
 extern const struct context Context;

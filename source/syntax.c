@@ -2,7 +2,7 @@
 
 extern int yyparse (void);
 
-#define NODES_SIZE 64
+#define NODES_SIZE 1024
 
 static syntax_info TheInfo = {0};
 static syntax_store *TheTree;
@@ -30,21 +30,6 @@ syntax_store *syntax_push(void) {
     return TheTree + TheInfo.count;
 }
 
-syntax_store **syntax_realloc(
-    syntax_store **stores, 
-    size_t        *count, 
-    size_t        *capacity) {
-
-    size_t bytes;
-    if (*count == *capacity) {
-        *capacity += NODES_SIZE;
-        bytes = sizeof(syntax_store) * (*capacity);
-        TheTree = (syntax_store *) realloc(stores, bytes); 
-    }
-
-    TheInfo.count += 1;
-    return stores + (*count);
-}
 
 bool _letters_identical(
     uint8_t      **letters, 
@@ -193,10 +178,20 @@ void _print_node_string(syntax_store_type type) {
     case ast_word_in_expression:            printf("Word In Expression"); return;
     case ast_abstract_size:                 printf("Abstract Size"); return;
     case ast_abstract_alphabet:             printf("Abstract Alphabet"); return;
+    case ast_abstract_named:                printf("Abstract Named"); return;
+    case ast_range_literal:                 printf("Range"); return;
+    case ast_range_function:                printf("Range Function"); return;
     case ast_algorithm:                     printf("Algorithm"); return;
     case ast_algorithm_rules:               printf("Algorithm Rules"); return;
     case ast_algorithm_rule:                printf("Rule"); return;
     case ast_pattern:                       printf("Pattern"); return;
+    case ast_algorithm_call:                 printf("Algorithm Call"); return;
+    case ast_equivalence:                    printf("Equivalence"); return;
+    case ast_bind_expression:                printf("Bind"); return;
+    case ast_bind_rule:                      printf("Bind Rule"); return;
+    case ast_bind_rules_list:                printf("Bind Rules"); return;
+    case ast_rule_name:                      printf("Rule Name"); return;
+    case ast_emit_expression:                printf("Emit Expression"); return;
     default:                                printf("UNKNOWN"); return;
     }
 }

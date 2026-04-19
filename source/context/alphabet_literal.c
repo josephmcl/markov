@@ -121,7 +121,11 @@ alphabet_literal *_context_push_alphabet_literal(
     return *(context->alphabet_literals + context->alphabet_literals_count - 1);
 }
 
-// TODO: Write a clean up / free function for the abovee. ^^ 
+void alphabet_literal_free(void) {
+    free(TheAlphabetLiteral);
+    TheAlphabetLiteral = NULL;
+    TheInfo = (alphabet_literal_info){0};
+}
 
 bool _context_has_alphabet_literal(
     program_context *context, 

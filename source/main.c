@@ -43,6 +43,8 @@ int main(int argc, char **argv) {
     WebAssembly.generate(&Data);
 
     /* Free all of the memory we used. */
+    Context.free();
+    Data.free();
     Syntax.free();
     Lex.free();
 

@@ -96,25 +96,30 @@ uint8_t *string_literal(uint8_t *head, uint8_t *end) {
     return rv;
 }
 
-#define MB_TOKS 10
+#define MB_TOKS 14
 #define MB_TOKS_OFFSET 4
 
 static uint8_t multi_byte_tokens[MB_TOKS * MB_TOKS_OFFSET] = {
-    "∈\t"
-    "¬\t "
-    "⊂\t"
-    "::\t "
-    "∪\t"
-    "∩\t"
-    "->\t "
-    "-.\t "
-    "~>\t "
-    "~.\t "
+    "∈\t"       /* 0: TOKEN_IN */
+    "¬\t "      /* 1: TOKEN_NOT */
+    "⊂\t"       /* 2: TOKEN_EXTENDS */
+    "::\t "     /* 3: TOKEN_DOUBLE_COLON */
+    "∪\t"       /* 4: TOKEN_UNION */
+    "∩\t"       /* 5: TOKEN_INTERSECT */
+    "->\t "     /* 6: TOKEN_ARROW */
+    "-.\t "     /* 7: TOKEN_TERMINAL */
+    "~>\t "     /* 8: TOKEN_EMIT_ARROW */
+    "~.\t "     /* 9: TOKEN_EMIT_TERMINAL */
+    ":>\t "     /* 10: TOKEN_BIND */
+    "::=\t"     /* 11: TOKEN_RULE_EQ */
+    "≈\t"       /* 12: TOKEN_APPROX */
+    "~~\t "     /* 13: TOKEN_DOUBLE_TILDE */
 };
 
 uint16_t multi_byte_token(uint8_t *s, uint8_t *end) {
     int i, j;
     uint8_t *temp, *stamp;
+    int best_i = -1, best_len = 0;
 
     stamp = multi_byte_tokens;
     for (i = 0; i < MB_TOKS; ++i) {
@@ -123,11 +128,14 @@ uint16_t multi_byte_token(uint8_t *s, uint8_t *end) {
         while (end - temp > 0 && *(temp + j) == *(stamp + j))
             j += 1;
 
-        if (*(stamp + j) == '\t') {
-            return 
-                ((i + MULTI_BYTE_TOKENS) << 0x8) + j;
+        if (*(stamp + j) == '\t' && j > best_len) {
+            best_i = i;
+            best_len = j;
         }
         stamp += MB_TOKS_OFFSET;
+    }
+    if (best_i >= 0) {
+        return ((best_i + MULTI_BYTE_TOKENS) << 0x8) + best_len;
     }
     return 0;
 }
@@ -193,6 +201,7 @@ lexical_token single_byte_token(uint8_t c) {
     case ')': return TOKEN_RPAREN;
     case ':': return TOKEN_COLON;
     case '~': return TOKEN_TILDE;
+    case '!': return TOKEN_EXCLAIM;
     default: return TOKEN_UNKNOWN;
     }
 }

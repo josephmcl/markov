@@ -1,0 +1,3593 @@
+Terminals unused in grammar
+
+    NOT
+    EN_NOT
+
+
+State 4 conflicts: 1 shift/reduce
+State 44 conflicts: 2 reduce/reduce
+State 117 conflicts: 1 shift/reduce
+State 118 conflicts: 1 shift/reduce
+State 119 conflicts: 1 shift/reduce
+State 120 conflicts: 1 shift/reduce
+State 121 conflicts: 1 shift/reduce
+State 122 conflicts: 1 shift/reduce
+State 123 conflicts: 1 shift/reduce
+State 124 conflicts: 1 shift/reduce
+State 126 conflicts: 1 shift/reduce
+State 127 conflicts: 1 shift/reduce
+State 128 conflicts: 1 shift/reduce
+State 205 conflicts: 10 shift/reduce
+
+
+Grammar
+
+    0 $accept: program $end
+
+    1 program: statements
+
+    2 statements: %empty
+    3           | statements statementz
+    4           | statements statementz PERIOD
+
+    5 function: LBRACKET RBRACKET LCURL statements RCURL
+
+    6 u_inherited_scope_names: %empty
+    7                        | inherited_scope_names
+    8                        | EQUAL
+    9                        | ATSIGN
+
+   10 inherited_scope_names: inherited_scope_name
+   11                      | inherited_scope_names COMMA inherited_scope_name
+
+   12 inherited_scope_name: IDENTIFIER
+   13                     | inherited_scope_name DOUBLE_COLON IDENTIFIER
+
+   14 statementz: statement
+   15           | statementz SEMICOLON statement
+   16           | statementz COMMA statement
+
+   17 statement: assignment_statement
+   18          | import_statement
+   19          | r_expression
+   20          | function
+   21          | scope
+   22          | algorithm
+   23          | algorithm_call
+   24          | equivalence_statement
+
+   25 scope: scope_export scope_module scope_name LCURL statements RCURL
+   26      | scope_context scope_name LCURL statements RCURL
+   27      | scope_export scope_context scope_name LCURL statements RCURL
+
+   28 scope_export: EN_EXPORT
+
+   29 scope_module: EN_MODULE
+
+   30 scope_name: %empty
+   31           | IDENTIFIER
+
+   32 scope_context: LANGLE u_inherited_scope_names RANGLE
+
+   33 assignment_statement: l_expression EQUAL r_expression
+
+   34 import_statement: EN_IMPORT EN_MODULE IDENTIFIER
+
+   35 l_expression: variable
+
+   36 variable: IDENTIFIER
+
+   37 r_expression: alphabet_body
+   38             | extends_expression
+   39             | union_expression
+   40             | intersect_expression
+   41             | difference_expression
+   42             | word_literal
+   43             | word_in_expression
+   44             | abstract_size
+   45             | abstract_alphabet
+   46             | abstract_named
+   47             | range_literal
+   48             | range_function
+   49             | bind_expression
+   50             | bind_rules_value
+   51             | variable
+
+   52 extends_expression: r_expression EXTENDS r_expression
+   53                   | r_expression EN_EXTENDS r_expression
+
+   54 union_expression: r_expression UNION r_expression
+   55                 | r_expression EN_UNION r_expression
+
+   56 intersect_expression: r_expression INTERSECT r_expression
+   57                     | r_expression EN_INTERSECT r_expression
+
+   58 difference_expression: r_expression BACKSLASH r_expression
+   59                      | r_expression EN_DIFFERENCE r_expression
+
+   60 alphabet_body: LCURL u_letters RCURL
+
+   61 u_letters: %empty
+   62          | letters
+
+   63 letters: letter
+   64        | letters COMMA letter
+
+   65 letter: IDENTIFIER
+
+   66 word_literal: STRING_LITERAL
+
+   67 word_in_expression: word_literal IN r_expression
+   68                   | word_literal EN_IN r_expression
+
+   69 range_literal: NUMBER PERIOD PERIOD NUMBER
+
+   70 range_function: IDENTIFIER LPAREN NUMBER COMMA NUMBER COMMA NUMBER RPAREN
+
+   71 abstract_size: LBRACKET NUMBER RBRACKET
+
+   72 abstract_alphabet: abstract_size PLUS alphabet_body
+
+   73 abstract_named: LBRACKET abstract_name_list RBRACKET
+
+   74 abstract_name_list: IDENTIFIER COMMA IDENTIFIER
+   75                   | abstract_name_list COMMA IDENTIFIER
+
+   76 algorithm_name: IDENTIFIER
+
+   77 algorithm: algorithm_name DOUBLE_COLON variable LCURL algorithm_rules RCURL
+   78          | algorithm_name DOUBLE_COLON abstract_size LCURL algorithm_rules RCURL
+   79          | algorithm_name DOUBLE_COLON abstract_named LCURL algorithm_rules RCURL
+   80          | algorithm_name DOUBLE_COLON LBRACKET r_expression RBRACKET TILDE IDENTIFIER
+   81          | algorithm_name DOUBLE_COLON LBRACKET r_expression RBRACKET APPROX IDENTIFIER
+   82          | algorithm_name DOUBLE_COLON LBRACKET r_expression RBRACKET DOUBLE_TILDE IDENTIFIER
+
+   83 algorithm_rules: %empty
+   84                | algorithm_rule
+   85                | algorithm_rules SEMICOLON algorithm_rule
+
+   86 algorithm_rule: pattern ARROW pattern
+   87               | pattern TERMINAL
+   88               | pattern EMIT_ARROW pattern COLON STRING_LITERAL
+   89               | pattern EMIT_ARROW pattern
+   90               | pattern EMIT_TERMINAL COLON STRING_LITERAL
+   91               | pattern EMIT_TERMINAL
+   92               | IDENTIFIER COLON pattern ARROW pattern
+   93               | IDENTIFIER COLON pattern TERMINAL
+   94               | IDENTIFIER COLON pattern EMIT_ARROW pattern COLON STRING_LITERAL
+   95               | IDENTIFIER COLON pattern EMIT_ARROW pattern
+   96               | IDENTIFIER COLON pattern EMIT_TERMINAL COLON STRING_LITERAL
+   97               | IDENTIFIER COLON pattern EMIT_TERMINAL
+
+   98 pattern: IDENTIFIER
+   99        | pattern IDENTIFIER
+
+  100 algorithm_call: IDENTIFIER LPAREN STRING_LITERAL RPAREN
+  101               | IDENTIFIER LPAREN IDENTIFIER RPAREN
+  102               | IDENTIFIER LPAREN TILDE RPAREN
+
+  103 bind_rules_value: LCURL bind_rules_list RCURL
+
+  104 bind_expression: r_expression BIND r_expression
+  105                | r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+  106 bind_rules_list: bind_rule
+  107                | IDENTIFIER
+  108                | bind_rules_list COMMA bind_rule
+
+  109 bind_rule: IDENTIFIER COLON IDENTIFIER
+  110          | IDENTIFIER COLON
+  111          | IDENTIFIER PERIOD IDENTIFIER
+  112          | EXCLAIM IDENTIFIER
+
+  113 equivalence_statement: algorithm_name RULE_EQ algorithm_name
+  114                      | IDENTIFIER DOUBLE_COLON LBRACKET r_expression RBRACKET TILDE IDENTIFIER
+  115                      | IDENTIFIER DOUBLE_COLON LBRACKET r_expression RBRACKET APPROX IDENTIFIER
+  116                      | IDENTIFIER DOUBLE_COLON LBRACKET r_expression RBRACKET DOUBLE_TILDE IDENTIFIER
+
+
+Terminals, with rules where they appear
+
+    $end (0) 0
+    error (256)
+    IDENTIFIER <yuck> (258) 12 13 31 34 36 65 70 74 75 76 80 81 82 92 93 94 95 96 97 98 99 100 101 102 107 109 110 111 112 114 115 116
+    STRING_LITERAL <yuck> (259) 66 88 90 94 96 100
+    NUMBER <yuck> (260) 69 70 71
+    PLUS (261) 72
+    NOT (262)
+    DOUBLE_COLON (263) 13 77 78 79 80 81 82 114 115 116
+    EQUAL (264) 8 33
+    COMMA (265) 11 16 64 70 74 75 108
+    LCURL (266) 5 25 26 27 60 77 78 79 103
+    RCURL (267) 5 25 26 27 60 77 78 79 103
+    SEMICOLON (268) 15 85
+    PERIOD (269) 4 69 111
+    LANGLE (270) 32
+    RANGLE (271) 32 105
+    LBRACKET (272) 5 71 73 80 81 82 105 114 115 116
+    RBRACKET (273) 5 71 73 80 81 82 105 114 115 116
+    ATSIGN (274) 9
+    EN_NOT (275)
+    EN_MODULE (276) 29 34
+    EN_IMPORT (277) 34
+    EN_EXPORT (278) 28
+    IN (279) 67
+    EN_IN (280) 68
+    EXTENDS (281) 52
+    EN_EXTENDS (282) 53
+    UNION (283) 54
+    EN_UNION (284) 55
+    INTERSECT (285) 56
+    EN_INTERSECT (286) 57
+    BACKSLASH (287) 58
+    EN_DIFFERENCE (288) 59
+    ARROW (289) 86 92
+    TERMINAL (290) 87 93
+    EMIT_ARROW (291) 88 89 94 95
+    EMIT_TERMINAL (292) 90 91 96 97
+    COLON (293) 88 90 92 93 94 95 96 97 105 109 110
+    TILDE (294) 80 102 114
+    BIND (295) 104
+    RULE_EQ (296) 113
+    APPROX (297) 81 115
+    DOUBLE_TILDE (298) 82 116
+    EXCLAIM (299) 112
+    LPAREN (300) 70 100 101 102
+    RPAREN (301) 70 100 101 102
+
+
+Nonterminals, with rules where they appear
+
+    $accept (47)
+        on left: 0
+    program <yuck> (48)
+        on left: 1
+        on right: 0
+    statements <yuck> (49)
+        on left: 2 3 4
+        on right: 1 3 4 5 25 26 27
+    function <yuck> (50)
+        on left: 5
+        on right: 20
+    u_inherited_scope_names <yuck> (51)
+        on left: 6 7 8 9
+        on right: 32
+    inherited_scope_names (52)
+        on left: 10 11
+        on right: 7 11
+    inherited_scope_name (53)
+        on left: 12 13
+        on right: 10 11 13
+    statementz <yuck> (54)
+        on left: 14 15 16
+        on right: 3 4 15 16
+    statement <yuck> (55)
+        on left: 17 18 19 20 21 22 23 24
+        on right: 14 15 16
+    scope <yuck> (56)
+        on left: 25 26 27
+        on right: 21
+    scope_export (57)
+        on left: 28
+        on right: 25 27
+    scope_module (58)
+        on left: 29
+        on right: 25
+    scope_name <yuck> (59)
+        on left: 30 31
+        on right: 25 26 27
+    scope_context <yuck> (60)
+        on left: 32
+        on right: 26 27
+    assignment_statement <yuck> (61)
+        on left: 33
+        on right: 17
+    import_statement <yuck> (62)
+        on left: 34
+        on right: 18
+    l_expression <yuck> (63)
+        on left: 35
+        on right: 33
+    variable <yuck> (64)
+        on left: 36
+        on right: 35 51 77
+    r_expression <yuck> (65)
+        on left: 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51
+        on right: 19 33 52 53 54 55 56 57 58 59 67 68 80 81 82 104 105 114 115 116
+    extends_expression <yuck> (66)
+        on left: 52 53
+        on right: 38
+    union_expression <yuck> (67)
+        on left: 54 55
+        on right: 39
+    intersect_expression <yuck> (68)
+        on left: 56 57
+        on right: 40
+    difference_expression <yuck> (69)
+        on left: 58 59
+        on right: 41
+    alphabet_body <yuck> (70)
+        on left: 60
+        on right: 37 72
+    u_letters <yuck> (71)
+        on left: 61 62
+        on right: 60
+    letters <yuck> (72)
+        on left: 63 64
+        on right: 62 64
+    letter <yuck> (73)
+        on left: 65
+        on right: 63 64
+    word_literal <yuck> (74)
+        on left: 66
+        on right: 42 67 68
+    word_in_expression <yuck> (75)
+        on left: 67 68
+        on right: 43
+    range_literal <yuck> (76)
+        on left: 69
+        on right: 47
+    range_function <yuck> (77)
+        on left: 70
+        on right: 48
+    abstract_size <yuck> (78)
+        on left: 71
+        on right: 44 72 78
+    abstract_alphabet <yuck> (79)
+        on left: 72
+        on right: 45
+    abstract_named <yuck> (80)
+        on left: 73
+        on right: 46 79
+    abstract_name_list <yuck> (81)
+        on left: 74 75
+        on right: 73 75
+    algorithm_name <yuck> (82)
+        on left: 76
+        on right: 77 78 79 80 81 82 113
+    algorithm <yuck> (83)
+        on left: 77 78 79 80 81 82
+        on right: 22
+    algorithm_rules <yuck> (84)
+        on left: 83 84 85
+        on right: 77 78 79 85
+    algorithm_rule <yuck> (85)
+        on left: 86 87 88 89 90 91 92 93 94 95 96 97
+        on right: 84 85
+    pattern <yuck> (86)
+        on left: 98 99
+        on right: 86 87 88 89 90 91 92 93 94 95 96 97 99
+    algorithm_call <yuck> (87)
+        on left: 100 101 102
+        on right: 23
+    bind_rules_value <yuck> (88)
+        on left: 103
+        on right: 50
+    bind_expression <yuck> (89)
+        on left: 104 105
+        on right: 49
+    bind_rules_list <yuck> (90)
+        on left: 106 107 108
+        on right: 103 105 108
+    bind_rule <yuck> (91)
+        on left: 109 110 111 112
+        on right: 106 108
+    equivalence_statement <yuck> (92)
+        on left: 113 114 115 116
+        on right: 24
+
+
+State 0
+
+    0 $accept: . program $end
+
+    $default  reduce using rule 2 (statements)
+
+    program     go to state 1
+    statements  go to state 2
+
+
+State 1
+
+    0 $accept: program . $end
+
+    $end  shift, and go to state 3
+
+
+State 2
+
+    1 program: statements .
+    3 statements: statements . statementz
+    4           | statements . statementz PERIOD
+
+    IDENTIFIER      shift, and go to state 4
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LANGLE          shift, and go to state 8
+    LBRACKET        shift, and go to state 9
+    EN_IMPORT       shift, and go to state 10
+    EN_EXPORT       shift, and go to state 11
+
+    $default  reduce using rule 1 (program)
+
+    function               go to state 12
+    statementz             go to state 13
+    statement              go to state 14
+    scope                  go to state 15
+    scope_export           go to state 16
+    scope_context          go to state 17
+    assignment_statement   go to state 18
+    import_statement       go to state 19
+    l_expression           go to state 20
+    variable               go to state 21
+    r_expression           go to state 22
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    algorithm_name         go to state 35
+    algorithm              go to state 36
+    algorithm_call         go to state 37
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+    equivalence_statement  go to state 40
+
+
+State 3
+
+    0 $accept: program $end .
+
+    $default  accept
+
+
+State 4
+
+   36 variable: IDENTIFIER .
+   70 range_function: IDENTIFIER . LPAREN NUMBER COMMA NUMBER COMMA NUMBER RPAREN
+   76 algorithm_name: IDENTIFIER .
+  100 algorithm_call: IDENTIFIER . LPAREN STRING_LITERAL RPAREN
+  101               | IDENTIFIER . LPAREN IDENTIFIER RPAREN
+  102               | IDENTIFIER . LPAREN TILDE RPAREN
+  114 equivalence_statement: IDENTIFIER . DOUBLE_COLON LBRACKET r_expression RBRACKET TILDE IDENTIFIER
+  115                      | IDENTIFIER . DOUBLE_COLON LBRACKET r_expression RBRACKET APPROX IDENTIFIER
+  116                      | IDENTIFIER . DOUBLE_COLON LBRACKET r_expression RBRACKET DOUBLE_TILDE IDENTIFIER
+
+    DOUBLE_COLON  shift, and go to state 41
+    LPAREN        shift, and go to state 42
+
+    DOUBLE_COLON  [reduce using rule 76 (algorithm_name)]
+    RULE_EQ       reduce using rule 76 (algorithm_name)
+    $default      reduce using rule 36 (variable)
+
+    shift/reduce conflict on token DOUBLE_COLON:
+       76 algorithm_name: IDENTIFIER .
+      114 equivalence_statement: IDENTIFIER . DOUBLE_COLON LBRACKET r_expression RBRACKET TILDE IDENTIFIER
+      Example: IDENTIFIER . DOUBLE_COLON LBRACKET r_expression RBRACKET TILDE IDENTIFIER
+      Shift derivation
+        statement
+        `-> 24: equivalence_statement
+                `-> 114: IDENTIFIER . DOUBLE_COLON LBRACKET r_expression RBRACKET TILDE IDENTIFIER
+      Reduce derivation
+        statement
+        `-> 22: algorithm
+                `-> 80: algorithm_name       DOUBLE_COLON LBRACKET r_expression RBRACKET TILDE IDENTIFIER
+                        `-> 76: IDENTIFIER .
+
+    shift/reduce conflict on token DOUBLE_COLON:
+       76 algorithm_name: IDENTIFIER .
+      115 equivalence_statement: IDENTIFIER . DOUBLE_COLON LBRACKET r_expression RBRACKET APPROX IDENTIFIER
+      Example: IDENTIFIER . DOUBLE_COLON LBRACKET r_expression RBRACKET APPROX IDENTIFIER
+      Shift derivation
+        statement
+        `-> 24: equivalence_statement
+                `-> 115: IDENTIFIER . DOUBLE_COLON LBRACKET r_expression RBRACKET APPROX IDENTIFIER
+      Reduce derivation
+        statement
+        `-> 22: algorithm
+                `-> 81: algorithm_name       DOUBLE_COLON LBRACKET r_expression RBRACKET APPROX IDENTIFIER
+                        `-> 76: IDENTIFIER .
+
+    shift/reduce conflict on token DOUBLE_COLON:
+       76 algorithm_name: IDENTIFIER .
+      116 equivalence_statement: IDENTIFIER . DOUBLE_COLON LBRACKET r_expression RBRACKET DOUBLE_TILDE IDENTIFIER
+      Example: IDENTIFIER . DOUBLE_COLON LBRACKET r_expression RBRACKET DOUBLE_TILDE IDENTIFIER
+      Shift derivation
+        statement
+        `-> 24: equivalence_statement
+                `-> 116: IDENTIFIER . DOUBLE_COLON LBRACKET r_expression RBRACKET DOUBLE_TILDE IDENTIFIER
+      Reduce derivation
+        statement
+        `-> 22: algorithm
+                `-> 82: algorithm_name       DOUBLE_COLON LBRACKET r_expression RBRACKET DOUBLE_TILDE IDENTIFIER
+                        `-> 76: IDENTIFIER .
+
+
+
+State 5
+
+   66 word_literal: STRING_LITERAL .
+
+    $default  reduce using rule 66 (word_literal)
+
+
+State 6
+
+   69 range_literal: NUMBER . PERIOD PERIOD NUMBER
+
+    PERIOD  shift, and go to state 43
+
+
+State 7
+
+   60 alphabet_body: LCURL . u_letters RCURL
+  103 bind_rules_value: LCURL . bind_rules_list RCURL
+
+    IDENTIFIER  shift, and go to state 44
+    EXCLAIM     shift, and go to state 45
+
+    $default  reduce using rule 61 (u_letters)
+
+    u_letters        go to state 46
+    letters          go to state 47
+    letter           go to state 48
+    bind_rules_list  go to state 49
+    bind_rule        go to state 50
+
+
+State 8
+
+   32 scope_context: LANGLE . u_inherited_scope_names RANGLE
+
+    IDENTIFIER  shift, and go to state 51
+    EQUAL       shift, and go to state 52
+    ATSIGN      shift, and go to state 53
+
+    $default  reduce using rule 6 (u_inherited_scope_names)
+
+    u_inherited_scope_names  go to state 54
+    inherited_scope_names    go to state 55
+    inherited_scope_name     go to state 56
+
+
+State 9
+
+    5 function: LBRACKET . RBRACKET LCURL statements RCURL
+   71 abstract_size: LBRACKET . NUMBER RBRACKET
+   73 abstract_named: LBRACKET . abstract_name_list RBRACKET
+
+    IDENTIFIER  shift, and go to state 57
+    NUMBER      shift, and go to state 58
+    RBRACKET    shift, and go to state 59
+
+    abstract_name_list  go to state 60
+
+
+State 10
+
+   34 import_statement: EN_IMPORT . EN_MODULE IDENTIFIER
+
+    EN_MODULE  shift, and go to state 61
+
+
+State 11
+
+   28 scope_export: EN_EXPORT .
+
+    $default  reduce using rule 28 (scope_export)
+
+
+State 12
+
+   20 statement: function .
+
+    $default  reduce using rule 20 (statement)
+
+
+State 13
+
+    3 statements: statements statementz .
+    4           | statements statementz . PERIOD
+   15 statementz: statementz . SEMICOLON statement
+   16           | statementz . COMMA statement
+
+    COMMA      shift, and go to state 62
+    SEMICOLON  shift, and go to state 63
+    PERIOD     shift, and go to state 64
+
+    $default  reduce using rule 3 (statements)
+
+
+State 14
+
+   14 statementz: statement .
+
+    $default  reduce using rule 14 (statementz)
+
+
+State 15
+
+   21 statement: scope .
+
+    $default  reduce using rule 21 (statement)
+
+
+State 16
+
+   25 scope: scope_export . scope_module scope_name LCURL statements RCURL
+   27      | scope_export . scope_context scope_name LCURL statements RCURL
+
+    LANGLE     shift, and go to state 8
+    EN_MODULE  shift, and go to state 65
+
+    scope_module   go to state 66
+    scope_context  go to state 67
+
+
+State 17
+
+   26 scope: scope_context . scope_name LCURL statements RCURL
+
+    IDENTIFIER  shift, and go to state 68
+
+    $default  reduce using rule 30 (scope_name)
+
+    scope_name  go to state 69
+
+
+State 18
+
+   17 statement: assignment_statement .
+
+    $default  reduce using rule 17 (statement)
+
+
+State 19
+
+   18 statement: import_statement .
+
+    $default  reduce using rule 18 (statement)
+
+
+State 20
+
+   33 assignment_statement: l_expression . EQUAL r_expression
+
+    EQUAL  shift, and go to state 70
+
+
+State 21
+
+   35 l_expression: variable .
+   51 r_expression: variable .
+
+    EQUAL     reduce using rule 35 (l_expression)
+    $default  reduce using rule 51 (r_expression)
+
+
+State 22
+
+   19 statement: r_expression .
+   52 extends_expression: r_expression . EXTENDS r_expression
+   53                   | r_expression . EN_EXTENDS r_expression
+   54 union_expression: r_expression . UNION r_expression
+   55                 | r_expression . EN_UNION r_expression
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   57                     | r_expression . EN_INTERSECT r_expression
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   59                      | r_expression . EN_DIFFERENCE r_expression
+  104 bind_expression: r_expression . BIND r_expression
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+    EXTENDS        shift, and go to state 71
+    EN_EXTENDS     shift, and go to state 72
+    UNION          shift, and go to state 73
+    EN_UNION       shift, and go to state 74
+    INTERSECT      shift, and go to state 75
+    EN_INTERSECT   shift, and go to state 76
+    BACKSLASH      shift, and go to state 77
+    EN_DIFFERENCE  shift, and go to state 78
+    COLON          shift, and go to state 79
+    BIND           shift, and go to state 80
+
+    $default  reduce using rule 19 (statement)
+
+
+State 23
+
+   38 r_expression: extends_expression .
+
+    $default  reduce using rule 38 (r_expression)
+
+
+State 24
+
+   39 r_expression: union_expression .
+
+    $default  reduce using rule 39 (r_expression)
+
+
+State 25
+
+   40 r_expression: intersect_expression .
+
+    $default  reduce using rule 40 (r_expression)
+
+
+State 26
+
+   41 r_expression: difference_expression .
+
+    $default  reduce using rule 41 (r_expression)
+
+
+State 27
+
+   37 r_expression: alphabet_body .
+
+    $default  reduce using rule 37 (r_expression)
+
+
+State 28
+
+   42 r_expression: word_literal .
+   67 word_in_expression: word_literal . IN r_expression
+   68                   | word_literal . EN_IN r_expression
+
+    IN     shift, and go to state 81
+    EN_IN  shift, and go to state 82
+
+    $default  reduce using rule 42 (r_expression)
+
+
+State 29
+
+   43 r_expression: word_in_expression .
+
+    $default  reduce using rule 43 (r_expression)
+
+
+State 30
+
+   47 r_expression: range_literal .
+
+    $default  reduce using rule 47 (r_expression)
+
+
+State 31
+
+   48 r_expression: range_function .
+
+    $default  reduce using rule 48 (r_expression)
+
+
+State 32
+
+   44 r_expression: abstract_size .
+   72 abstract_alphabet: abstract_size . PLUS alphabet_body
+
+    PLUS  shift, and go to state 83
+
+    $default  reduce using rule 44 (r_expression)
+
+
+State 33
+
+   45 r_expression: abstract_alphabet .
+
+    $default  reduce using rule 45 (r_expression)
+
+
+State 34
+
+   46 r_expression: abstract_named .
+
+    $default  reduce using rule 46 (r_expression)
+
+
+State 35
+
+   77 algorithm: algorithm_name . DOUBLE_COLON variable LCURL algorithm_rules RCURL
+   78          | algorithm_name . DOUBLE_COLON abstract_size LCURL algorithm_rules RCURL
+   79          | algorithm_name . DOUBLE_COLON abstract_named LCURL algorithm_rules RCURL
+   80          | algorithm_name . DOUBLE_COLON LBRACKET r_expression RBRACKET TILDE IDENTIFIER
+   81          | algorithm_name . DOUBLE_COLON LBRACKET r_expression RBRACKET APPROX IDENTIFIER
+   82          | algorithm_name . DOUBLE_COLON LBRACKET r_expression RBRACKET DOUBLE_TILDE IDENTIFIER
+  113 equivalence_statement: algorithm_name . RULE_EQ algorithm_name
+
+    DOUBLE_COLON  shift, and go to state 84
+    RULE_EQ       shift, and go to state 85
+
+
+State 36
+
+   22 statement: algorithm .
+
+    $default  reduce using rule 22 (statement)
+
+
+State 37
+
+   23 statement: algorithm_call .
+
+    $default  reduce using rule 23 (statement)
+
+
+State 38
+
+   50 r_expression: bind_rules_value .
+
+    $default  reduce using rule 50 (r_expression)
+
+
+State 39
+
+   49 r_expression: bind_expression .
+
+    $default  reduce using rule 49 (r_expression)
+
+
+State 40
+
+   24 statement: equivalence_statement .
+
+    $default  reduce using rule 24 (statement)
+
+
+State 41
+
+  114 equivalence_statement: IDENTIFIER DOUBLE_COLON . LBRACKET r_expression RBRACKET TILDE IDENTIFIER
+  115                      | IDENTIFIER DOUBLE_COLON . LBRACKET r_expression RBRACKET APPROX IDENTIFIER
+  116                      | IDENTIFIER DOUBLE_COLON . LBRACKET r_expression RBRACKET DOUBLE_TILDE IDENTIFIER
+
+    LBRACKET  shift, and go to state 86
+
+
+State 42
+
+   70 range_function: IDENTIFIER LPAREN . NUMBER COMMA NUMBER COMMA NUMBER RPAREN
+  100 algorithm_call: IDENTIFIER LPAREN . STRING_LITERAL RPAREN
+  101               | IDENTIFIER LPAREN . IDENTIFIER RPAREN
+  102               | IDENTIFIER LPAREN . TILDE RPAREN
+
+    IDENTIFIER      shift, and go to state 87
+    STRING_LITERAL  shift, and go to state 88
+    NUMBER          shift, and go to state 89
+    TILDE           shift, and go to state 90
+
+
+State 43
+
+   69 range_literal: NUMBER PERIOD . PERIOD NUMBER
+
+    PERIOD  shift, and go to state 91
+
+
+State 44
+
+   65 letter: IDENTIFIER .
+  107 bind_rules_list: IDENTIFIER .
+  109 bind_rule: IDENTIFIER . COLON IDENTIFIER
+  110          | IDENTIFIER . COLON
+  111          | IDENTIFIER . PERIOD IDENTIFIER
+
+    PERIOD  shift, and go to state 92
+    COLON   shift, and go to state 93
+
+    COMMA     reduce using rule 65 (letter)
+    COMMA     [reduce using rule 107 (bind_rules_list)]
+    RCURL     reduce using rule 65 (letter)
+    RCURL     [reduce using rule 107 (bind_rules_list)]
+    $default  reduce using rule 65 (letter)
+
+    reduce/reduce conflict on tokens COMMA, RCURL:
+       65 letter: IDENTIFIER .
+      107 bind_rules_list: IDENTIFIER .
+      Example: LCURL IDENTIFIER . RCURL
+      First reduce derivation
+        r_expression
+        `-> 37: alphabet_body
+                `-> 60: LCURL u_letters                            RCURL
+                              `-> 62: letters
+                                      `-> 63: letter
+                                              `-> 65: IDENTIFIER .
+      Second reduce derivation
+        r_expression
+        `-> 50: bind_rules_value
+                `-> 103: LCURL bind_rules_list       RCURL
+                               `-> 107: IDENTIFIER .
+
+
+
+State 45
+
+  112 bind_rule: EXCLAIM . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 94
+
+
+State 46
+
+   60 alphabet_body: LCURL u_letters . RCURL
+
+    RCURL  shift, and go to state 95
+
+
+State 47
+
+   62 u_letters: letters .
+   64 letters: letters . COMMA letter
+
+    COMMA  shift, and go to state 96
+
+    $default  reduce using rule 62 (u_letters)
+
+
+State 48
+
+   63 letters: letter .
+
+    $default  reduce using rule 63 (letters)
+
+
+State 49
+
+  103 bind_rules_value: LCURL bind_rules_list . RCURL
+  108 bind_rules_list: bind_rules_list . COMMA bind_rule
+
+    COMMA  shift, and go to state 97
+    RCURL  shift, and go to state 98
+
+
+State 50
+
+  106 bind_rules_list: bind_rule .
+
+    $default  reduce using rule 106 (bind_rules_list)
+
+
+State 51
+
+   12 inherited_scope_name: IDENTIFIER .
+
+    $default  reduce using rule 12 (inherited_scope_name)
+
+
+State 52
+
+    8 u_inherited_scope_names: EQUAL .
+
+    $default  reduce using rule 8 (u_inherited_scope_names)
+
+
+State 53
+
+    9 u_inherited_scope_names: ATSIGN .
+
+    $default  reduce using rule 9 (u_inherited_scope_names)
+
+
+State 54
+
+   32 scope_context: LANGLE u_inherited_scope_names . RANGLE
+
+    RANGLE  shift, and go to state 99
+
+
+State 55
+
+    7 u_inherited_scope_names: inherited_scope_names .
+   11 inherited_scope_names: inherited_scope_names . COMMA inherited_scope_name
+
+    COMMA  shift, and go to state 100
+
+    $default  reduce using rule 7 (u_inherited_scope_names)
+
+
+State 56
+
+   10 inherited_scope_names: inherited_scope_name .
+   13 inherited_scope_name: inherited_scope_name . DOUBLE_COLON IDENTIFIER
+
+    DOUBLE_COLON  shift, and go to state 101
+
+    $default  reduce using rule 10 (inherited_scope_names)
+
+
+State 57
+
+   74 abstract_name_list: IDENTIFIER . COMMA IDENTIFIER
+
+    COMMA  shift, and go to state 102
+
+
+State 58
+
+   71 abstract_size: LBRACKET NUMBER . RBRACKET
+
+    RBRACKET  shift, and go to state 103
+
+
+State 59
+
+    5 function: LBRACKET RBRACKET . LCURL statements RCURL
+
+    LCURL  shift, and go to state 104
+
+
+State 60
+
+   73 abstract_named: LBRACKET abstract_name_list . RBRACKET
+   75 abstract_name_list: abstract_name_list . COMMA IDENTIFIER
+
+    COMMA     shift, and go to state 105
+    RBRACKET  shift, and go to state 106
+
+
+State 61
+
+   34 import_statement: EN_IMPORT EN_MODULE . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 107
+
+
+State 62
+
+   16 statementz: statementz COMMA . statement
+
+    IDENTIFIER      shift, and go to state 4
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LANGLE          shift, and go to state 8
+    LBRACKET        shift, and go to state 9
+    EN_IMPORT       shift, and go to state 10
+    EN_EXPORT       shift, and go to state 11
+
+    function               go to state 12
+    statement              go to state 108
+    scope                  go to state 15
+    scope_export           go to state 16
+    scope_context          go to state 17
+    assignment_statement   go to state 18
+    import_statement       go to state 19
+    l_expression           go to state 20
+    variable               go to state 21
+    r_expression           go to state 22
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    algorithm_name         go to state 35
+    algorithm              go to state 36
+    algorithm_call         go to state 37
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+    equivalence_statement  go to state 40
+
+
+State 63
+
+   15 statementz: statementz SEMICOLON . statement
+
+    IDENTIFIER      shift, and go to state 4
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LANGLE          shift, and go to state 8
+    LBRACKET        shift, and go to state 9
+    EN_IMPORT       shift, and go to state 10
+    EN_EXPORT       shift, and go to state 11
+
+    function               go to state 12
+    statement              go to state 109
+    scope                  go to state 15
+    scope_export           go to state 16
+    scope_context          go to state 17
+    assignment_statement   go to state 18
+    import_statement       go to state 19
+    l_expression           go to state 20
+    variable               go to state 21
+    r_expression           go to state 22
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    algorithm_name         go to state 35
+    algorithm              go to state 36
+    algorithm_call         go to state 37
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+    equivalence_statement  go to state 40
+
+
+State 64
+
+    4 statements: statements statementz PERIOD .
+
+    $default  reduce using rule 4 (statements)
+
+
+State 65
+
+   29 scope_module: EN_MODULE .
+
+    $default  reduce using rule 29 (scope_module)
+
+
+State 66
+
+   25 scope: scope_export scope_module . scope_name LCURL statements RCURL
+
+    IDENTIFIER  shift, and go to state 68
+
+    $default  reduce using rule 30 (scope_name)
+
+    scope_name  go to state 110
+
+
+State 67
+
+   27 scope: scope_export scope_context . scope_name LCURL statements RCURL
+
+    IDENTIFIER  shift, and go to state 68
+
+    $default  reduce using rule 30 (scope_name)
+
+    scope_name  go to state 111
+
+
+State 68
+
+   31 scope_name: IDENTIFIER .
+
+    $default  reduce using rule 31 (scope_name)
+
+
+State 69
+
+   26 scope: scope_context scope_name . LCURL statements RCURL
+
+    LCURL  shift, and go to state 112
+
+
+State 70
+
+   33 assignment_statement: l_expression EQUAL . r_expression
+
+    IDENTIFIER      shift, and go to state 113
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LBRACKET        shift, and go to state 114
+
+    variable               go to state 115
+    r_expression           go to state 116
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+
+
+State 71
+
+   52 extends_expression: r_expression EXTENDS . r_expression
+
+    IDENTIFIER      shift, and go to state 113
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LBRACKET        shift, and go to state 114
+
+    variable               go to state 115
+    r_expression           go to state 117
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+
+
+State 72
+
+   53 extends_expression: r_expression EN_EXTENDS . r_expression
+
+    IDENTIFIER      shift, and go to state 113
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LBRACKET        shift, and go to state 114
+
+    variable               go to state 115
+    r_expression           go to state 118
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+
+
+State 73
+
+   54 union_expression: r_expression UNION . r_expression
+
+    IDENTIFIER      shift, and go to state 113
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LBRACKET        shift, and go to state 114
+
+    variable               go to state 115
+    r_expression           go to state 119
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+
+
+State 74
+
+   55 union_expression: r_expression EN_UNION . r_expression
+
+    IDENTIFIER      shift, and go to state 113
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LBRACKET        shift, and go to state 114
+
+    variable               go to state 115
+    r_expression           go to state 120
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+
+
+State 75
+
+   56 intersect_expression: r_expression INTERSECT . r_expression
+
+    IDENTIFIER      shift, and go to state 113
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LBRACKET        shift, and go to state 114
+
+    variable               go to state 115
+    r_expression           go to state 121
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+
+
+State 76
+
+   57 intersect_expression: r_expression EN_INTERSECT . r_expression
+
+    IDENTIFIER      shift, and go to state 113
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LBRACKET        shift, and go to state 114
+
+    variable               go to state 115
+    r_expression           go to state 122
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+
+
+State 77
+
+   58 difference_expression: r_expression BACKSLASH . r_expression
+
+    IDENTIFIER      shift, and go to state 113
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LBRACKET        shift, and go to state 114
+
+    variable               go to state 115
+    r_expression           go to state 123
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+
+
+State 78
+
+   59 difference_expression: r_expression EN_DIFFERENCE . r_expression
+
+    IDENTIFIER      shift, and go to state 113
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LBRACKET        shift, and go to state 114
+
+    variable               go to state 115
+    r_expression           go to state 124
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+
+
+State 79
+
+  105 bind_expression: r_expression COLON . LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+    LBRACKET  shift, and go to state 125
+
+
+State 80
+
+  104 bind_expression: r_expression BIND . r_expression
+
+    IDENTIFIER      shift, and go to state 113
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LBRACKET        shift, and go to state 114
+
+    variable               go to state 115
+    r_expression           go to state 126
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+
+
+State 81
+
+   67 word_in_expression: word_literal IN . r_expression
+
+    IDENTIFIER      shift, and go to state 113
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LBRACKET        shift, and go to state 114
+
+    variable               go to state 115
+    r_expression           go to state 127
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+
+
+State 82
+
+   68 word_in_expression: word_literal EN_IN . r_expression
+
+    IDENTIFIER      shift, and go to state 113
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LBRACKET        shift, and go to state 114
+
+    variable               go to state 115
+    r_expression           go to state 128
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+
+
+State 83
+
+   72 abstract_alphabet: abstract_size PLUS . alphabet_body
+
+    LCURL  shift, and go to state 129
+
+    alphabet_body  go to state 130
+
+
+State 84
+
+   77 algorithm: algorithm_name DOUBLE_COLON . variable LCURL algorithm_rules RCURL
+   78          | algorithm_name DOUBLE_COLON . abstract_size LCURL algorithm_rules RCURL
+   79          | algorithm_name DOUBLE_COLON . abstract_named LCURL algorithm_rules RCURL
+   80          | algorithm_name DOUBLE_COLON . LBRACKET r_expression RBRACKET TILDE IDENTIFIER
+   81          | algorithm_name DOUBLE_COLON . LBRACKET r_expression RBRACKET APPROX IDENTIFIER
+   82          | algorithm_name DOUBLE_COLON . LBRACKET r_expression RBRACKET DOUBLE_TILDE IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 131
+    LBRACKET    shift, and go to state 132
+
+    variable        go to state 133
+    abstract_size   go to state 134
+    abstract_named  go to state 135
+
+
+State 85
+
+  113 equivalence_statement: algorithm_name RULE_EQ . algorithm_name
+
+    IDENTIFIER  shift, and go to state 136
+
+    algorithm_name  go to state 137
+
+
+State 86
+
+  114 equivalence_statement: IDENTIFIER DOUBLE_COLON LBRACKET . r_expression RBRACKET TILDE IDENTIFIER
+  115                      | IDENTIFIER DOUBLE_COLON LBRACKET . r_expression RBRACKET APPROX IDENTIFIER
+  116                      | IDENTIFIER DOUBLE_COLON LBRACKET . r_expression RBRACKET DOUBLE_TILDE IDENTIFIER
+
+    IDENTIFIER      shift, and go to state 113
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LBRACKET        shift, and go to state 114
+
+    variable               go to state 115
+    r_expression           go to state 138
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+
+
+State 87
+
+  101 algorithm_call: IDENTIFIER LPAREN IDENTIFIER . RPAREN
+
+    RPAREN  shift, and go to state 139
+
+
+State 88
+
+  100 algorithm_call: IDENTIFIER LPAREN STRING_LITERAL . RPAREN
+
+    RPAREN  shift, and go to state 140
+
+
+State 89
+
+   70 range_function: IDENTIFIER LPAREN NUMBER . COMMA NUMBER COMMA NUMBER RPAREN
+
+    COMMA  shift, and go to state 141
+
+
+State 90
+
+  102 algorithm_call: IDENTIFIER LPAREN TILDE . RPAREN
+
+    RPAREN  shift, and go to state 142
+
+
+State 91
+
+   69 range_literal: NUMBER PERIOD PERIOD . NUMBER
+
+    NUMBER  shift, and go to state 143
+
+
+State 92
+
+  111 bind_rule: IDENTIFIER PERIOD . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 144
+
+
+State 93
+
+  109 bind_rule: IDENTIFIER COLON . IDENTIFIER
+  110          | IDENTIFIER COLON .
+
+    IDENTIFIER  shift, and go to state 145
+
+    $default  reduce using rule 110 (bind_rule)
+
+
+State 94
+
+  112 bind_rule: EXCLAIM IDENTIFIER .
+
+    $default  reduce using rule 112 (bind_rule)
+
+
+State 95
+
+   60 alphabet_body: LCURL u_letters RCURL .
+
+    $default  reduce using rule 60 (alphabet_body)
+
+
+State 96
+
+   64 letters: letters COMMA . letter
+
+    IDENTIFIER  shift, and go to state 146
+
+    letter  go to state 147
+
+
+State 97
+
+  108 bind_rules_list: bind_rules_list COMMA . bind_rule
+
+    IDENTIFIER  shift, and go to state 148
+    EXCLAIM     shift, and go to state 45
+
+    bind_rule  go to state 149
+
+
+State 98
+
+  103 bind_rules_value: LCURL bind_rules_list RCURL .
+
+    $default  reduce using rule 103 (bind_rules_value)
+
+
+State 99
+
+   32 scope_context: LANGLE u_inherited_scope_names RANGLE .
+
+    $default  reduce using rule 32 (scope_context)
+
+
+State 100
+
+   11 inherited_scope_names: inherited_scope_names COMMA . inherited_scope_name
+
+    IDENTIFIER  shift, and go to state 51
+
+    inherited_scope_name  go to state 150
+
+
+State 101
+
+   13 inherited_scope_name: inherited_scope_name DOUBLE_COLON . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 151
+
+
+State 102
+
+   74 abstract_name_list: IDENTIFIER COMMA . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 152
+
+
+State 103
+
+   71 abstract_size: LBRACKET NUMBER RBRACKET .
+
+    $default  reduce using rule 71 (abstract_size)
+
+
+State 104
+
+    5 function: LBRACKET RBRACKET LCURL . statements RCURL
+
+    $default  reduce using rule 2 (statements)
+
+    statements  go to state 153
+
+
+State 105
+
+   75 abstract_name_list: abstract_name_list COMMA . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 154
+
+
+State 106
+
+   73 abstract_named: LBRACKET abstract_name_list RBRACKET .
+
+    $default  reduce using rule 73 (abstract_named)
+
+
+State 107
+
+   34 import_statement: EN_IMPORT EN_MODULE IDENTIFIER .
+
+    $default  reduce using rule 34 (import_statement)
+
+
+State 108
+
+   16 statementz: statementz COMMA statement .
+
+    $default  reduce using rule 16 (statementz)
+
+
+State 109
+
+   15 statementz: statementz SEMICOLON statement .
+
+    $default  reduce using rule 15 (statementz)
+
+
+State 110
+
+   25 scope: scope_export scope_module scope_name . LCURL statements RCURL
+
+    LCURL  shift, and go to state 155
+
+
+State 111
+
+   27 scope: scope_export scope_context scope_name . LCURL statements RCURL
+
+    LCURL  shift, and go to state 156
+
+
+State 112
+
+   26 scope: scope_context scope_name LCURL . statements RCURL
+
+    $default  reduce using rule 2 (statements)
+
+    statements  go to state 157
+
+
+State 113
+
+   36 variable: IDENTIFIER .
+   70 range_function: IDENTIFIER . LPAREN NUMBER COMMA NUMBER COMMA NUMBER RPAREN
+
+    LPAREN  shift, and go to state 158
+
+    $default  reduce using rule 36 (variable)
+
+
+State 114
+
+   71 abstract_size: LBRACKET . NUMBER RBRACKET
+   73 abstract_named: LBRACKET . abstract_name_list RBRACKET
+
+    IDENTIFIER  shift, and go to state 57
+    NUMBER      shift, and go to state 58
+
+    abstract_name_list  go to state 60
+
+
+State 115
+
+   51 r_expression: variable .
+
+    $default  reduce using rule 51 (r_expression)
+
+
+State 116
+
+   33 assignment_statement: l_expression EQUAL r_expression .
+   52 extends_expression: r_expression . EXTENDS r_expression
+   53                   | r_expression . EN_EXTENDS r_expression
+   54 union_expression: r_expression . UNION r_expression
+   55                 | r_expression . EN_UNION r_expression
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   57                     | r_expression . EN_INTERSECT r_expression
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   59                      | r_expression . EN_DIFFERENCE r_expression
+  104 bind_expression: r_expression . BIND r_expression
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+    EXTENDS        shift, and go to state 71
+    EN_EXTENDS     shift, and go to state 72
+    UNION          shift, and go to state 73
+    EN_UNION       shift, and go to state 74
+    INTERSECT      shift, and go to state 75
+    EN_INTERSECT   shift, and go to state 76
+    BACKSLASH      shift, and go to state 77
+    EN_DIFFERENCE  shift, and go to state 78
+    COLON          shift, and go to state 79
+    BIND           shift, and go to state 80
+
+    $default  reduce using rule 33 (assignment_statement)
+
+
+State 117
+
+   52 extends_expression: r_expression . EXTENDS r_expression
+   52                   | r_expression EXTENDS r_expression .
+   53                   | r_expression . EN_EXTENDS r_expression
+   54 union_expression: r_expression . UNION r_expression
+   55                 | r_expression . EN_UNION r_expression
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   57                     | r_expression . EN_INTERSECT r_expression
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   59                      | r_expression . EN_DIFFERENCE r_expression
+  104 bind_expression: r_expression . BIND r_expression
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+    UNION          shift, and go to state 73
+    EN_UNION       shift, and go to state 74
+    INTERSECT      shift, and go to state 75
+    EN_INTERSECT   shift, and go to state 76
+    BACKSLASH      shift, and go to state 77
+    EN_DIFFERENCE  shift, and go to state 78
+    COLON          shift, and go to state 79
+
+    COLON     [reduce using rule 52 (extends_expression)]
+    $default  reduce using rule 52 (extends_expression)
+
+    shift/reduce conflict on token COLON:
+       52 extends_expression: r_expression EXTENDS r_expression .
+      105 bind_expression: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Example: r_expression EXTENDS r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Shift derivation
+        r_expression
+        `-> 38: extends_expression
+                `-> 52: r_expression EXTENDS r_expression
+                                             `-> 49: bind_expression
+                                                     `-> 105: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Reduce derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression                                        COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                         `-> 38: extends_expression
+                                 `-> 52: r_expression EXTENDS r_expression .
+
+
+
+State 118
+
+   52 extends_expression: r_expression . EXTENDS r_expression
+   53                   | r_expression . EN_EXTENDS r_expression
+   53                   | r_expression EN_EXTENDS r_expression .
+   54 union_expression: r_expression . UNION r_expression
+   55                 | r_expression . EN_UNION r_expression
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   57                     | r_expression . EN_INTERSECT r_expression
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   59                      | r_expression . EN_DIFFERENCE r_expression
+  104 bind_expression: r_expression . BIND r_expression
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+    UNION          shift, and go to state 73
+    EN_UNION       shift, and go to state 74
+    INTERSECT      shift, and go to state 75
+    EN_INTERSECT   shift, and go to state 76
+    BACKSLASH      shift, and go to state 77
+    EN_DIFFERENCE  shift, and go to state 78
+    COLON          shift, and go to state 79
+
+    COLON     [reduce using rule 53 (extends_expression)]
+    $default  reduce using rule 53 (extends_expression)
+
+    shift/reduce conflict on token COLON:
+       53 extends_expression: r_expression EN_EXTENDS r_expression .
+      105 bind_expression: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Example: r_expression EN_EXTENDS r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Shift derivation
+        r_expression
+        `-> 38: extends_expression
+                `-> 53: r_expression EN_EXTENDS r_expression
+                                                `-> 49: bind_expression
+                                                        `-> 105: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Reduce derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression                                           COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                         `-> 38: extends_expression
+                                 `-> 53: r_expression EN_EXTENDS r_expression .
+
+
+
+State 119
+
+   52 extends_expression: r_expression . EXTENDS r_expression
+   53                   | r_expression . EN_EXTENDS r_expression
+   54 union_expression: r_expression . UNION r_expression
+   54                 | r_expression UNION r_expression .
+   55                 | r_expression . EN_UNION r_expression
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   57                     | r_expression . EN_INTERSECT r_expression
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   59                      | r_expression . EN_DIFFERENCE r_expression
+  104 bind_expression: r_expression . BIND r_expression
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+    INTERSECT      shift, and go to state 75
+    EN_INTERSECT   shift, and go to state 76
+    BACKSLASH      shift, and go to state 77
+    EN_DIFFERENCE  shift, and go to state 78
+    COLON          shift, and go to state 79
+
+    COLON     [reduce using rule 54 (union_expression)]
+    $default  reduce using rule 54 (union_expression)
+
+    shift/reduce conflict on token COLON:
+       54 union_expression: r_expression UNION r_expression .
+      105 bind_expression: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Example: r_expression UNION r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Shift derivation
+        r_expression
+        `-> 39: union_expression
+                `-> 54: r_expression UNION r_expression
+                                           `-> 49: bind_expression
+                                                   `-> 105: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Reduce derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression                                      COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                         `-> 39: union_expression
+                                 `-> 54: r_expression UNION r_expression .
+
+
+
+State 120
+
+   52 extends_expression: r_expression . EXTENDS r_expression
+   53                   | r_expression . EN_EXTENDS r_expression
+   54 union_expression: r_expression . UNION r_expression
+   55                 | r_expression . EN_UNION r_expression
+   55                 | r_expression EN_UNION r_expression .
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   57                     | r_expression . EN_INTERSECT r_expression
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   59                      | r_expression . EN_DIFFERENCE r_expression
+  104 bind_expression: r_expression . BIND r_expression
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+    INTERSECT      shift, and go to state 75
+    EN_INTERSECT   shift, and go to state 76
+    BACKSLASH      shift, and go to state 77
+    EN_DIFFERENCE  shift, and go to state 78
+    COLON          shift, and go to state 79
+
+    COLON     [reduce using rule 55 (union_expression)]
+    $default  reduce using rule 55 (union_expression)
+
+    shift/reduce conflict on token COLON:
+       55 union_expression: r_expression EN_UNION r_expression .
+      105 bind_expression: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Example: r_expression EN_UNION r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Shift derivation
+        r_expression
+        `-> 39: union_expression
+                `-> 55: r_expression EN_UNION r_expression
+                                              `-> 49: bind_expression
+                                                      `-> 105: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Reduce derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression                                         COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                         `-> 39: union_expression
+                                 `-> 55: r_expression EN_UNION r_expression .
+
+
+
+State 121
+
+   52 extends_expression: r_expression . EXTENDS r_expression
+   53                   | r_expression . EN_EXTENDS r_expression
+   54 union_expression: r_expression . UNION r_expression
+   55                 | r_expression . EN_UNION r_expression
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   56                     | r_expression INTERSECT r_expression .
+   57                     | r_expression . EN_INTERSECT r_expression
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   59                      | r_expression . EN_DIFFERENCE r_expression
+  104 bind_expression: r_expression . BIND r_expression
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+    BACKSLASH      shift, and go to state 77
+    EN_DIFFERENCE  shift, and go to state 78
+    COLON          shift, and go to state 79
+
+    COLON     [reduce using rule 56 (intersect_expression)]
+    $default  reduce using rule 56 (intersect_expression)
+
+    shift/reduce conflict on token COLON:
+       56 intersect_expression: r_expression INTERSECT r_expression .
+      105 bind_expression: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Example: r_expression INTERSECT r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Shift derivation
+        r_expression
+        `-> 40: intersect_expression
+                `-> 56: r_expression INTERSECT r_expression
+                                               `-> 49: bind_expression
+                                                       `-> 105: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Reduce derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression                                          COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                         `-> 40: intersect_expression
+                                 `-> 56: r_expression INTERSECT r_expression .
+
+
+
+State 122
+
+   52 extends_expression: r_expression . EXTENDS r_expression
+   53                   | r_expression . EN_EXTENDS r_expression
+   54 union_expression: r_expression . UNION r_expression
+   55                 | r_expression . EN_UNION r_expression
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   57                     | r_expression . EN_INTERSECT r_expression
+   57                     | r_expression EN_INTERSECT r_expression .
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   59                      | r_expression . EN_DIFFERENCE r_expression
+  104 bind_expression: r_expression . BIND r_expression
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+    BACKSLASH      shift, and go to state 77
+    EN_DIFFERENCE  shift, and go to state 78
+    COLON          shift, and go to state 79
+
+    COLON     [reduce using rule 57 (intersect_expression)]
+    $default  reduce using rule 57 (intersect_expression)
+
+    shift/reduce conflict on token COLON:
+       57 intersect_expression: r_expression EN_INTERSECT r_expression .
+      105 bind_expression: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Example: r_expression EN_INTERSECT r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Shift derivation
+        r_expression
+        `-> 40: intersect_expression
+                `-> 57: r_expression EN_INTERSECT r_expression
+                                                  `-> 49: bind_expression
+                                                          `-> 105: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Reduce derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression                                             COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                         `-> 40: intersect_expression
+                                 `-> 57: r_expression EN_INTERSECT r_expression .
+
+
+
+State 123
+
+   52 extends_expression: r_expression . EXTENDS r_expression
+   53                   | r_expression . EN_EXTENDS r_expression
+   54 union_expression: r_expression . UNION r_expression
+   55                 | r_expression . EN_UNION r_expression
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   57                     | r_expression . EN_INTERSECT r_expression
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   58                      | r_expression BACKSLASH r_expression .
+   59                      | r_expression . EN_DIFFERENCE r_expression
+  104 bind_expression: r_expression . BIND r_expression
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+    COLON  shift, and go to state 79
+
+    COLON     [reduce using rule 58 (difference_expression)]
+    $default  reduce using rule 58 (difference_expression)
+
+    shift/reduce conflict on token COLON:
+       58 difference_expression: r_expression BACKSLASH r_expression .
+      105 bind_expression: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Example: r_expression BACKSLASH r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Shift derivation
+        r_expression
+        `-> 41: difference_expression
+                `-> 58: r_expression BACKSLASH r_expression
+                                               `-> 49: bind_expression
+                                                       `-> 105: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Reduce derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression                                          COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                         `-> 41: difference_expression
+                                 `-> 58: r_expression BACKSLASH r_expression .
+
+
+
+State 124
+
+   52 extends_expression: r_expression . EXTENDS r_expression
+   53                   | r_expression . EN_EXTENDS r_expression
+   54 union_expression: r_expression . UNION r_expression
+   55                 | r_expression . EN_UNION r_expression
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   57                     | r_expression . EN_INTERSECT r_expression
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   59                      | r_expression . EN_DIFFERENCE r_expression
+   59                      | r_expression EN_DIFFERENCE r_expression .
+  104 bind_expression: r_expression . BIND r_expression
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+    COLON  shift, and go to state 79
+
+    COLON     [reduce using rule 59 (difference_expression)]
+    $default  reduce using rule 59 (difference_expression)
+
+    shift/reduce conflict on token COLON:
+       59 difference_expression: r_expression EN_DIFFERENCE r_expression .
+      105 bind_expression: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Example: r_expression EN_DIFFERENCE r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Shift derivation
+        r_expression
+        `-> 41: difference_expression
+                `-> 59: r_expression EN_DIFFERENCE r_expression
+                                                   `-> 49: bind_expression
+                                                           `-> 105: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Reduce derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression                                              COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                         `-> 41: difference_expression
+                                 `-> 59: r_expression EN_DIFFERENCE r_expression .
+
+
+
+State 125
+
+  105 bind_expression: r_expression COLON LBRACKET . bind_rules_list RBRACKET RANGLE r_expression
+
+    IDENTIFIER  shift, and go to state 159
+    EXCLAIM     shift, and go to state 45
+
+    bind_rules_list  go to state 160
+    bind_rule        go to state 50
+
+
+State 126
+
+   52 extends_expression: r_expression . EXTENDS r_expression
+   53                   | r_expression . EN_EXTENDS r_expression
+   54 union_expression: r_expression . UNION r_expression
+   55                 | r_expression . EN_UNION r_expression
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   57                     | r_expression . EN_INTERSECT r_expression
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   59                      | r_expression . EN_DIFFERENCE r_expression
+  104 bind_expression: r_expression . BIND r_expression
+  104                | r_expression BIND r_expression .
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+    EXTENDS        shift, and go to state 71
+    EN_EXTENDS     shift, and go to state 72
+    UNION          shift, and go to state 73
+    EN_UNION       shift, and go to state 74
+    INTERSECT      shift, and go to state 75
+    EN_INTERSECT   shift, and go to state 76
+    BACKSLASH      shift, and go to state 77
+    EN_DIFFERENCE  shift, and go to state 78
+    COLON          shift, and go to state 79
+    BIND           shift, and go to state 80
+
+    COLON     [reduce using rule 104 (bind_expression)]
+    $default  reduce using rule 104 (bind_expression)
+
+    shift/reduce conflict on token COLON:
+      104 bind_expression: r_expression BIND r_expression .
+      105 bind_expression: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Example: r_expression BIND r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Shift derivation
+        bind_expression
+        `-> 104: r_expression BIND r_expression
+                                   `-> 49: bind_expression
+                                           `-> 105: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Reduce derivation
+        bind_expression
+        `-> 105: r_expression                                      COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                 `-> 49: bind_expression
+                         `-> 104: r_expression BIND r_expression .
+
+
+
+State 127
+
+   52 extends_expression: r_expression . EXTENDS r_expression
+   53                   | r_expression . EN_EXTENDS r_expression
+   54 union_expression: r_expression . UNION r_expression
+   55                 | r_expression . EN_UNION r_expression
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   57                     | r_expression . EN_INTERSECT r_expression
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   59                      | r_expression . EN_DIFFERENCE r_expression
+   67 word_in_expression: word_literal IN r_expression .
+  104 bind_expression: r_expression . BIND r_expression
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+    EXTENDS        shift, and go to state 71
+    EN_EXTENDS     shift, and go to state 72
+    UNION          shift, and go to state 73
+    EN_UNION       shift, and go to state 74
+    INTERSECT      shift, and go to state 75
+    EN_INTERSECT   shift, and go to state 76
+    BACKSLASH      shift, and go to state 77
+    EN_DIFFERENCE  shift, and go to state 78
+    COLON          shift, and go to state 79
+
+    COLON     [reduce using rule 67 (word_in_expression)]
+    $default  reduce using rule 67 (word_in_expression)
+
+    shift/reduce conflict on token COLON:
+       67 word_in_expression: word_literal IN r_expression .
+      105 bind_expression: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Example: word_literal IN r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Shift derivation
+        r_expression
+        `-> 43: word_in_expression
+                `-> 67: word_literal IN r_expression
+                                        `-> 49: bind_expression
+                                                `-> 105: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Reduce derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression                                   COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                         `-> 43: word_in_expression
+                                 `-> 67: word_literal IN r_expression .
+
+
+
+State 128
+
+   52 extends_expression: r_expression . EXTENDS r_expression
+   53                   | r_expression . EN_EXTENDS r_expression
+   54 union_expression: r_expression . UNION r_expression
+   55                 | r_expression . EN_UNION r_expression
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   57                     | r_expression . EN_INTERSECT r_expression
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   59                      | r_expression . EN_DIFFERENCE r_expression
+   68 word_in_expression: word_literal EN_IN r_expression .
+  104 bind_expression: r_expression . BIND r_expression
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+    EXTENDS        shift, and go to state 71
+    EN_EXTENDS     shift, and go to state 72
+    UNION          shift, and go to state 73
+    EN_UNION       shift, and go to state 74
+    INTERSECT      shift, and go to state 75
+    EN_INTERSECT   shift, and go to state 76
+    BACKSLASH      shift, and go to state 77
+    EN_DIFFERENCE  shift, and go to state 78
+    COLON          shift, and go to state 79
+
+    COLON     [reduce using rule 68 (word_in_expression)]
+    $default  reduce using rule 68 (word_in_expression)
+
+    shift/reduce conflict on token COLON:
+       68 word_in_expression: word_literal EN_IN r_expression .
+      105 bind_expression: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Example: word_literal EN_IN r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Shift derivation
+        r_expression
+        `-> 43: word_in_expression
+                `-> 68: word_literal EN_IN r_expression
+                                           `-> 49: bind_expression
+                                                   `-> 105: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Reduce derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression                                      COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                         `-> 43: word_in_expression
+                                 `-> 68: word_literal EN_IN r_expression .
+
+
+
+State 129
+
+   60 alphabet_body: LCURL . u_letters RCURL
+
+    IDENTIFIER  shift, and go to state 146
+
+    $default  reduce using rule 61 (u_letters)
+
+    u_letters  go to state 46
+    letters    go to state 47
+    letter     go to state 48
+
+
+State 130
+
+   72 abstract_alphabet: abstract_size PLUS alphabet_body .
+
+    $default  reduce using rule 72 (abstract_alphabet)
+
+
+State 131
+
+   36 variable: IDENTIFIER .
+
+    $default  reduce using rule 36 (variable)
+
+
+State 132
+
+   71 abstract_size: LBRACKET . NUMBER RBRACKET
+   73 abstract_named: LBRACKET . abstract_name_list RBRACKET
+   80 algorithm: algorithm_name DOUBLE_COLON LBRACKET . r_expression RBRACKET TILDE IDENTIFIER
+   81          | algorithm_name DOUBLE_COLON LBRACKET . r_expression RBRACKET APPROX IDENTIFIER
+   82          | algorithm_name DOUBLE_COLON LBRACKET . r_expression RBRACKET DOUBLE_TILDE IDENTIFIER
+
+    IDENTIFIER      shift, and go to state 161
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 162
+    LCURL           shift, and go to state 7
+    LBRACKET        shift, and go to state 114
+
+    variable               go to state 115
+    r_expression           go to state 163
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    abstract_name_list     go to state 60
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+
+
+State 133
+
+   77 algorithm: algorithm_name DOUBLE_COLON variable . LCURL algorithm_rules RCURL
+
+    LCURL  shift, and go to state 164
+
+
+State 134
+
+   78 algorithm: algorithm_name DOUBLE_COLON abstract_size . LCURL algorithm_rules RCURL
+
+    LCURL  shift, and go to state 165
+
+
+State 135
+
+   79 algorithm: algorithm_name DOUBLE_COLON abstract_named . LCURL algorithm_rules RCURL
+
+    LCURL  shift, and go to state 166
+
+
+State 136
+
+   76 algorithm_name: IDENTIFIER .
+
+    $default  reduce using rule 76 (algorithm_name)
+
+
+State 137
+
+  113 equivalence_statement: algorithm_name RULE_EQ algorithm_name .
+
+    $default  reduce using rule 113 (equivalence_statement)
+
+
+State 138
+
+   52 extends_expression: r_expression . EXTENDS r_expression
+   53                   | r_expression . EN_EXTENDS r_expression
+   54 union_expression: r_expression . UNION r_expression
+   55                 | r_expression . EN_UNION r_expression
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   57                     | r_expression . EN_INTERSECT r_expression
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   59                      | r_expression . EN_DIFFERENCE r_expression
+  104 bind_expression: r_expression . BIND r_expression
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+  114 equivalence_statement: IDENTIFIER DOUBLE_COLON LBRACKET r_expression . RBRACKET TILDE IDENTIFIER
+  115                      | IDENTIFIER DOUBLE_COLON LBRACKET r_expression . RBRACKET APPROX IDENTIFIER
+  116                      | IDENTIFIER DOUBLE_COLON LBRACKET r_expression . RBRACKET DOUBLE_TILDE IDENTIFIER
+
+    RBRACKET       shift, and go to state 167
+    EXTENDS        shift, and go to state 71
+    EN_EXTENDS     shift, and go to state 72
+    UNION          shift, and go to state 73
+    EN_UNION       shift, and go to state 74
+    INTERSECT      shift, and go to state 75
+    EN_INTERSECT   shift, and go to state 76
+    BACKSLASH      shift, and go to state 77
+    EN_DIFFERENCE  shift, and go to state 78
+    COLON          shift, and go to state 79
+    BIND           shift, and go to state 80
+
+
+State 139
+
+  101 algorithm_call: IDENTIFIER LPAREN IDENTIFIER RPAREN .
+
+    $default  reduce using rule 101 (algorithm_call)
+
+
+State 140
+
+  100 algorithm_call: IDENTIFIER LPAREN STRING_LITERAL RPAREN .
+
+    $default  reduce using rule 100 (algorithm_call)
+
+
+State 141
+
+   70 range_function: IDENTIFIER LPAREN NUMBER COMMA . NUMBER COMMA NUMBER RPAREN
+
+    NUMBER  shift, and go to state 168
+
+
+State 142
+
+  102 algorithm_call: IDENTIFIER LPAREN TILDE RPAREN .
+
+    $default  reduce using rule 102 (algorithm_call)
+
+
+State 143
+
+   69 range_literal: NUMBER PERIOD PERIOD NUMBER .
+
+    $default  reduce using rule 69 (range_literal)
+
+
+State 144
+
+  111 bind_rule: IDENTIFIER PERIOD IDENTIFIER .
+
+    $default  reduce using rule 111 (bind_rule)
+
+
+State 145
+
+  109 bind_rule: IDENTIFIER COLON IDENTIFIER .
+
+    $default  reduce using rule 109 (bind_rule)
+
+
+State 146
+
+   65 letter: IDENTIFIER .
+
+    $default  reduce using rule 65 (letter)
+
+
+State 147
+
+   64 letters: letters COMMA letter .
+
+    $default  reduce using rule 64 (letters)
+
+
+State 148
+
+  109 bind_rule: IDENTIFIER . COLON IDENTIFIER
+  110          | IDENTIFIER . COLON
+  111          | IDENTIFIER . PERIOD IDENTIFIER
+
+    PERIOD  shift, and go to state 92
+    COLON   shift, and go to state 93
+
+
+State 149
+
+  108 bind_rules_list: bind_rules_list COMMA bind_rule .
+
+    $default  reduce using rule 108 (bind_rules_list)
+
+
+State 150
+
+   11 inherited_scope_names: inherited_scope_names COMMA inherited_scope_name .
+   13 inherited_scope_name: inherited_scope_name . DOUBLE_COLON IDENTIFIER
+
+    DOUBLE_COLON  shift, and go to state 101
+
+    $default  reduce using rule 11 (inherited_scope_names)
+
+
+State 151
+
+   13 inherited_scope_name: inherited_scope_name DOUBLE_COLON IDENTIFIER .
+
+    $default  reduce using rule 13 (inherited_scope_name)
+
+
+State 152
+
+   74 abstract_name_list: IDENTIFIER COMMA IDENTIFIER .
+
+    $default  reduce using rule 74 (abstract_name_list)
+
+
+State 153
+
+    3 statements: statements . statementz
+    4           | statements . statementz PERIOD
+    5 function: LBRACKET RBRACKET LCURL statements . RCURL
+
+    IDENTIFIER      shift, and go to state 4
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    RCURL           shift, and go to state 169
+    LANGLE          shift, and go to state 8
+    LBRACKET        shift, and go to state 9
+    EN_IMPORT       shift, and go to state 10
+    EN_EXPORT       shift, and go to state 11
+
+    function               go to state 12
+    statementz             go to state 13
+    statement              go to state 14
+    scope                  go to state 15
+    scope_export           go to state 16
+    scope_context          go to state 17
+    assignment_statement   go to state 18
+    import_statement       go to state 19
+    l_expression           go to state 20
+    variable               go to state 21
+    r_expression           go to state 22
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    algorithm_name         go to state 35
+    algorithm              go to state 36
+    algorithm_call         go to state 37
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+    equivalence_statement  go to state 40
+
+
+State 154
+
+   75 abstract_name_list: abstract_name_list COMMA IDENTIFIER .
+
+    $default  reduce using rule 75 (abstract_name_list)
+
+
+State 155
+
+   25 scope: scope_export scope_module scope_name LCURL . statements RCURL
+
+    $default  reduce using rule 2 (statements)
+
+    statements  go to state 170
+
+
+State 156
+
+   27 scope: scope_export scope_context scope_name LCURL . statements RCURL
+
+    $default  reduce using rule 2 (statements)
+
+    statements  go to state 171
+
+
+State 157
+
+    3 statements: statements . statementz
+    4           | statements . statementz PERIOD
+   26 scope: scope_context scope_name LCURL statements . RCURL
+
+    IDENTIFIER      shift, and go to state 4
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    RCURL           shift, and go to state 172
+    LANGLE          shift, and go to state 8
+    LBRACKET        shift, and go to state 9
+    EN_IMPORT       shift, and go to state 10
+    EN_EXPORT       shift, and go to state 11
+
+    function               go to state 12
+    statementz             go to state 13
+    statement              go to state 14
+    scope                  go to state 15
+    scope_export           go to state 16
+    scope_context          go to state 17
+    assignment_statement   go to state 18
+    import_statement       go to state 19
+    l_expression           go to state 20
+    variable               go to state 21
+    r_expression           go to state 22
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    algorithm_name         go to state 35
+    algorithm              go to state 36
+    algorithm_call         go to state 37
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+    equivalence_statement  go to state 40
+
+
+State 158
+
+   70 range_function: IDENTIFIER LPAREN . NUMBER COMMA NUMBER COMMA NUMBER RPAREN
+
+    NUMBER  shift, and go to state 89
+
+
+State 159
+
+  107 bind_rules_list: IDENTIFIER .
+  109 bind_rule: IDENTIFIER . COLON IDENTIFIER
+  110          | IDENTIFIER . COLON
+  111          | IDENTIFIER . PERIOD IDENTIFIER
+
+    PERIOD  shift, and go to state 92
+    COLON   shift, and go to state 93
+
+    $default  reduce using rule 107 (bind_rules_list)
+
+
+State 160
+
+  105 bind_expression: r_expression COLON LBRACKET bind_rules_list . RBRACKET RANGLE r_expression
+  108 bind_rules_list: bind_rules_list . COMMA bind_rule
+
+    COMMA     shift, and go to state 97
+    RBRACKET  shift, and go to state 173
+
+
+State 161
+
+   36 variable: IDENTIFIER .
+   70 range_function: IDENTIFIER . LPAREN NUMBER COMMA NUMBER COMMA NUMBER RPAREN
+   74 abstract_name_list: IDENTIFIER . COMMA IDENTIFIER
+
+    COMMA   shift, and go to state 102
+    LPAREN  shift, and go to state 158
+
+    $default  reduce using rule 36 (variable)
+
+
+State 162
+
+   69 range_literal: NUMBER . PERIOD PERIOD NUMBER
+   71 abstract_size: LBRACKET NUMBER . RBRACKET
+
+    PERIOD    shift, and go to state 43
+    RBRACKET  shift, and go to state 103
+
+
+State 163
+
+   52 extends_expression: r_expression . EXTENDS r_expression
+   53                   | r_expression . EN_EXTENDS r_expression
+   54 union_expression: r_expression . UNION r_expression
+   55                 | r_expression . EN_UNION r_expression
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   57                     | r_expression . EN_INTERSECT r_expression
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   59                      | r_expression . EN_DIFFERENCE r_expression
+   80 algorithm: algorithm_name DOUBLE_COLON LBRACKET r_expression . RBRACKET TILDE IDENTIFIER
+   81          | algorithm_name DOUBLE_COLON LBRACKET r_expression . RBRACKET APPROX IDENTIFIER
+   82          | algorithm_name DOUBLE_COLON LBRACKET r_expression . RBRACKET DOUBLE_TILDE IDENTIFIER
+  104 bind_expression: r_expression . BIND r_expression
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+
+    RBRACKET       shift, and go to state 174
+    EXTENDS        shift, and go to state 71
+    EN_EXTENDS     shift, and go to state 72
+    UNION          shift, and go to state 73
+    EN_UNION       shift, and go to state 74
+    INTERSECT      shift, and go to state 75
+    EN_INTERSECT   shift, and go to state 76
+    BACKSLASH      shift, and go to state 77
+    EN_DIFFERENCE  shift, and go to state 78
+    COLON          shift, and go to state 79
+    BIND           shift, and go to state 80
+
+
+State 164
+
+   77 algorithm: algorithm_name DOUBLE_COLON variable LCURL . algorithm_rules RCURL
+
+    IDENTIFIER  shift, and go to state 175
+
+    $default  reduce using rule 83 (algorithm_rules)
+
+    algorithm_rules  go to state 176
+    algorithm_rule   go to state 177
+    pattern          go to state 178
+
+
+State 165
+
+   78 algorithm: algorithm_name DOUBLE_COLON abstract_size LCURL . algorithm_rules RCURL
+
+    IDENTIFIER  shift, and go to state 175
+
+    $default  reduce using rule 83 (algorithm_rules)
+
+    algorithm_rules  go to state 179
+    algorithm_rule   go to state 177
+    pattern          go to state 178
+
+
+State 166
+
+   79 algorithm: algorithm_name DOUBLE_COLON abstract_named LCURL . algorithm_rules RCURL
+
+    IDENTIFIER  shift, and go to state 175
+
+    $default  reduce using rule 83 (algorithm_rules)
+
+    algorithm_rules  go to state 180
+    algorithm_rule   go to state 177
+    pattern          go to state 178
+
+
+State 167
+
+  114 equivalence_statement: IDENTIFIER DOUBLE_COLON LBRACKET r_expression RBRACKET . TILDE IDENTIFIER
+  115                      | IDENTIFIER DOUBLE_COLON LBRACKET r_expression RBRACKET . APPROX IDENTIFIER
+  116                      | IDENTIFIER DOUBLE_COLON LBRACKET r_expression RBRACKET . DOUBLE_TILDE IDENTIFIER
+
+    TILDE         shift, and go to state 181
+    APPROX        shift, and go to state 182
+    DOUBLE_TILDE  shift, and go to state 183
+
+
+State 168
+
+   70 range_function: IDENTIFIER LPAREN NUMBER COMMA NUMBER . COMMA NUMBER RPAREN
+
+    COMMA  shift, and go to state 184
+
+
+State 169
+
+    5 function: LBRACKET RBRACKET LCURL statements RCURL .
+
+    $default  reduce using rule 5 (function)
+
+
+State 170
+
+    3 statements: statements . statementz
+    4           | statements . statementz PERIOD
+   25 scope: scope_export scope_module scope_name LCURL statements . RCURL
+
+    IDENTIFIER      shift, and go to state 4
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    RCURL           shift, and go to state 185
+    LANGLE          shift, and go to state 8
+    LBRACKET        shift, and go to state 9
+    EN_IMPORT       shift, and go to state 10
+    EN_EXPORT       shift, and go to state 11
+
+    function               go to state 12
+    statementz             go to state 13
+    statement              go to state 14
+    scope                  go to state 15
+    scope_export           go to state 16
+    scope_context          go to state 17
+    assignment_statement   go to state 18
+    import_statement       go to state 19
+    l_expression           go to state 20
+    variable               go to state 21
+    r_expression           go to state 22
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    algorithm_name         go to state 35
+    algorithm              go to state 36
+    algorithm_call         go to state 37
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+    equivalence_statement  go to state 40
+
+
+State 171
+
+    3 statements: statements . statementz
+    4           | statements . statementz PERIOD
+   27 scope: scope_export scope_context scope_name LCURL statements . RCURL
+
+    IDENTIFIER      shift, and go to state 4
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    RCURL           shift, and go to state 186
+    LANGLE          shift, and go to state 8
+    LBRACKET        shift, and go to state 9
+    EN_IMPORT       shift, and go to state 10
+    EN_EXPORT       shift, and go to state 11
+
+    function               go to state 12
+    statementz             go to state 13
+    statement              go to state 14
+    scope                  go to state 15
+    scope_export           go to state 16
+    scope_context          go to state 17
+    assignment_statement   go to state 18
+    import_statement       go to state 19
+    l_expression           go to state 20
+    variable               go to state 21
+    r_expression           go to state 22
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    algorithm_name         go to state 35
+    algorithm              go to state 36
+    algorithm_call         go to state 37
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+    equivalence_statement  go to state 40
+
+
+State 172
+
+   26 scope: scope_context scope_name LCURL statements RCURL .
+
+    $default  reduce using rule 26 (scope)
+
+
+State 173
+
+  105 bind_expression: r_expression COLON LBRACKET bind_rules_list RBRACKET . RANGLE r_expression
+
+    RANGLE  shift, and go to state 187
+
+
+State 174
+
+   80 algorithm: algorithm_name DOUBLE_COLON LBRACKET r_expression RBRACKET . TILDE IDENTIFIER
+   81          | algorithm_name DOUBLE_COLON LBRACKET r_expression RBRACKET . APPROX IDENTIFIER
+   82          | algorithm_name DOUBLE_COLON LBRACKET r_expression RBRACKET . DOUBLE_TILDE IDENTIFIER
+
+    TILDE         shift, and go to state 188
+    APPROX        shift, and go to state 189
+    DOUBLE_TILDE  shift, and go to state 190
+
+
+State 175
+
+   92 algorithm_rule: IDENTIFIER . COLON pattern ARROW pattern
+   93               | IDENTIFIER . COLON pattern TERMINAL
+   94               | IDENTIFIER . COLON pattern EMIT_ARROW pattern COLON STRING_LITERAL
+   95               | IDENTIFIER . COLON pattern EMIT_ARROW pattern
+   96               | IDENTIFIER . COLON pattern EMIT_TERMINAL COLON STRING_LITERAL
+   97               | IDENTIFIER . COLON pattern EMIT_TERMINAL
+   98 pattern: IDENTIFIER .
+
+    COLON  shift, and go to state 191
+
+    $default  reduce using rule 98 (pattern)
+
+
+State 176
+
+   77 algorithm: algorithm_name DOUBLE_COLON variable LCURL algorithm_rules . RCURL
+   85 algorithm_rules: algorithm_rules . SEMICOLON algorithm_rule
+
+    RCURL      shift, and go to state 192
+    SEMICOLON  shift, and go to state 193
+
+
+State 177
+
+   84 algorithm_rules: algorithm_rule .
+
+    $default  reduce using rule 84 (algorithm_rules)
+
+
+State 178
+
+   86 algorithm_rule: pattern . ARROW pattern
+   87               | pattern . TERMINAL
+   88               | pattern . EMIT_ARROW pattern COLON STRING_LITERAL
+   89               | pattern . EMIT_ARROW pattern
+   90               | pattern . EMIT_TERMINAL COLON STRING_LITERAL
+   91               | pattern . EMIT_TERMINAL
+   99 pattern: pattern . IDENTIFIER
+
+    IDENTIFIER     shift, and go to state 194
+    ARROW          shift, and go to state 195
+    TERMINAL       shift, and go to state 196
+    EMIT_ARROW     shift, and go to state 197
+    EMIT_TERMINAL  shift, and go to state 198
+
+
+State 179
+
+   78 algorithm: algorithm_name DOUBLE_COLON abstract_size LCURL algorithm_rules . RCURL
+   85 algorithm_rules: algorithm_rules . SEMICOLON algorithm_rule
+
+    RCURL      shift, and go to state 199
+    SEMICOLON  shift, and go to state 193
+
+
+State 180
+
+   79 algorithm: algorithm_name DOUBLE_COLON abstract_named LCURL algorithm_rules . RCURL
+   85 algorithm_rules: algorithm_rules . SEMICOLON algorithm_rule
+
+    RCURL      shift, and go to state 200
+    SEMICOLON  shift, and go to state 193
+
+
+State 181
+
+  114 equivalence_statement: IDENTIFIER DOUBLE_COLON LBRACKET r_expression RBRACKET TILDE . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 201
+
+
+State 182
+
+  115 equivalence_statement: IDENTIFIER DOUBLE_COLON LBRACKET r_expression RBRACKET APPROX . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 202
+
+
+State 183
+
+  116 equivalence_statement: IDENTIFIER DOUBLE_COLON LBRACKET r_expression RBRACKET DOUBLE_TILDE . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 203
+
+
+State 184
+
+   70 range_function: IDENTIFIER LPAREN NUMBER COMMA NUMBER COMMA . NUMBER RPAREN
+
+    NUMBER  shift, and go to state 204
+
+
+State 185
+
+   25 scope: scope_export scope_module scope_name LCURL statements RCURL .
+
+    $default  reduce using rule 25 (scope)
+
+
+State 186
+
+   27 scope: scope_export scope_context scope_name LCURL statements RCURL .
+
+    $default  reduce using rule 27 (scope)
+
+
+State 187
+
+  105 bind_expression: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE . r_expression
+
+    IDENTIFIER      shift, and go to state 113
+    STRING_LITERAL  shift, and go to state 5
+    NUMBER          shift, and go to state 6
+    LCURL           shift, and go to state 7
+    LBRACKET        shift, and go to state 114
+
+    variable               go to state 115
+    r_expression           go to state 205
+    extends_expression     go to state 23
+    union_expression       go to state 24
+    intersect_expression   go to state 25
+    difference_expression  go to state 26
+    alphabet_body          go to state 27
+    word_literal           go to state 28
+    word_in_expression     go to state 29
+    range_literal          go to state 30
+    range_function         go to state 31
+    abstract_size          go to state 32
+    abstract_alphabet      go to state 33
+    abstract_named         go to state 34
+    bind_rules_value       go to state 38
+    bind_expression        go to state 39
+
+
+State 188
+
+   80 algorithm: algorithm_name DOUBLE_COLON LBRACKET r_expression RBRACKET TILDE . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 206
+
+
+State 189
+
+   81 algorithm: algorithm_name DOUBLE_COLON LBRACKET r_expression RBRACKET APPROX . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 207
+
+
+State 190
+
+   82 algorithm: algorithm_name DOUBLE_COLON LBRACKET r_expression RBRACKET DOUBLE_TILDE . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 208
+
+
+State 191
+
+   92 algorithm_rule: IDENTIFIER COLON . pattern ARROW pattern
+   93               | IDENTIFIER COLON . pattern TERMINAL
+   94               | IDENTIFIER COLON . pattern EMIT_ARROW pattern COLON STRING_LITERAL
+   95               | IDENTIFIER COLON . pattern EMIT_ARROW pattern
+   96               | IDENTIFIER COLON . pattern EMIT_TERMINAL COLON STRING_LITERAL
+   97               | IDENTIFIER COLON . pattern EMIT_TERMINAL
+
+    IDENTIFIER  shift, and go to state 209
+
+    pattern  go to state 210
+
+
+State 192
+
+   77 algorithm: algorithm_name DOUBLE_COLON variable LCURL algorithm_rules RCURL .
+
+    $default  reduce using rule 77 (algorithm)
+
+
+State 193
+
+   85 algorithm_rules: algorithm_rules SEMICOLON . algorithm_rule
+
+    IDENTIFIER  shift, and go to state 175
+
+    algorithm_rule  go to state 211
+    pattern         go to state 178
+
+
+State 194
+
+   99 pattern: pattern IDENTIFIER .
+
+    $default  reduce using rule 99 (pattern)
+
+
+State 195
+
+   86 algorithm_rule: pattern ARROW . pattern
+
+    IDENTIFIER  shift, and go to state 209
+
+    pattern  go to state 212
+
+
+State 196
+
+   87 algorithm_rule: pattern TERMINAL .
+
+    $default  reduce using rule 87 (algorithm_rule)
+
+
+State 197
+
+   88 algorithm_rule: pattern EMIT_ARROW . pattern COLON STRING_LITERAL
+   89               | pattern EMIT_ARROW . pattern
+
+    IDENTIFIER  shift, and go to state 209
+
+    pattern  go to state 213
+
+
+State 198
+
+   90 algorithm_rule: pattern EMIT_TERMINAL . COLON STRING_LITERAL
+   91               | pattern EMIT_TERMINAL .
+
+    COLON  shift, and go to state 214
+
+    $default  reduce using rule 91 (algorithm_rule)
+
+
+State 199
+
+   78 algorithm: algorithm_name DOUBLE_COLON abstract_size LCURL algorithm_rules RCURL .
+
+    $default  reduce using rule 78 (algorithm)
+
+
+State 200
+
+   79 algorithm: algorithm_name DOUBLE_COLON abstract_named LCURL algorithm_rules RCURL .
+
+    $default  reduce using rule 79 (algorithm)
+
+
+State 201
+
+  114 equivalence_statement: IDENTIFIER DOUBLE_COLON LBRACKET r_expression RBRACKET TILDE IDENTIFIER .
+
+    $default  reduce using rule 114 (equivalence_statement)
+
+
+State 202
+
+  115 equivalence_statement: IDENTIFIER DOUBLE_COLON LBRACKET r_expression RBRACKET APPROX IDENTIFIER .
+
+    $default  reduce using rule 115 (equivalence_statement)
+
+
+State 203
+
+  116 equivalence_statement: IDENTIFIER DOUBLE_COLON LBRACKET r_expression RBRACKET DOUBLE_TILDE IDENTIFIER .
+
+    $default  reduce using rule 116 (equivalence_statement)
+
+
+State 204
+
+   70 range_function: IDENTIFIER LPAREN NUMBER COMMA NUMBER COMMA NUMBER . RPAREN
+
+    RPAREN  shift, and go to state 215
+
+
+State 205
+
+   52 extends_expression: r_expression . EXTENDS r_expression
+   53                   | r_expression . EN_EXTENDS r_expression
+   54 union_expression: r_expression . UNION r_expression
+   55                 | r_expression . EN_UNION r_expression
+   56 intersect_expression: r_expression . INTERSECT r_expression
+   57                     | r_expression . EN_INTERSECT r_expression
+   58 difference_expression: r_expression . BACKSLASH r_expression
+   59                      | r_expression . EN_DIFFERENCE r_expression
+  104 bind_expression: r_expression . BIND r_expression
+  105                | r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+  105                | r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+
+    EXTENDS        shift, and go to state 71
+    EN_EXTENDS     shift, and go to state 72
+    UNION          shift, and go to state 73
+    EN_UNION       shift, and go to state 74
+    INTERSECT      shift, and go to state 75
+    EN_INTERSECT   shift, and go to state 76
+    BACKSLASH      shift, and go to state 77
+    EN_DIFFERENCE  shift, and go to state 78
+    COLON          shift, and go to state 79
+    BIND           shift, and go to state 80
+
+    EXTENDS        [reduce using rule 105 (bind_expression)]
+    EN_EXTENDS     [reduce using rule 105 (bind_expression)]
+    UNION          [reduce using rule 105 (bind_expression)]
+    EN_UNION       [reduce using rule 105 (bind_expression)]
+    INTERSECT      [reduce using rule 105 (bind_expression)]
+    EN_INTERSECT   [reduce using rule 105 (bind_expression)]
+    BACKSLASH      [reduce using rule 105 (bind_expression)]
+    EN_DIFFERENCE  [reduce using rule 105 (bind_expression)]
+    COLON          [reduce using rule 105 (bind_expression)]
+    BIND           [reduce using rule 105 (bind_expression)]
+    $default       reduce using rule 105 (bind_expression)
+
+    shift/reduce conflict on token EXTENDS:
+      105 bind_expression: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+       52 extends_expression: r_expression . EXTENDS r_expression
+      Example: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression . EXTENDS r_expression
+      Shift derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                                                                                     `-> 38: extends_expression
+                                                                                             `-> 52: r_expression . EXTENDS r_expression
+      Reduce derivation
+        r_expression
+        `-> 38: extends_expression
+                `-> 52: r_expression                                                                                EXTENDS r_expression
+                        `-> 49: bind_expression
+                                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+
+    shift/reduce conflict on token EN_EXTENDS:
+      105 bind_expression: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+       53 extends_expression: r_expression . EN_EXTENDS r_expression
+      Example: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression . EN_EXTENDS r_expression
+      Shift derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                                                                                     `-> 38: extends_expression
+                                                                                             `-> 53: r_expression . EN_EXTENDS r_expression
+      Reduce derivation
+        r_expression
+        `-> 38: extends_expression
+                `-> 53: r_expression                                                                                EN_EXTENDS r_expression
+                        `-> 49: bind_expression
+                                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+
+    shift/reduce conflict on token UNION:
+      105 bind_expression: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+       54 union_expression: r_expression . UNION r_expression
+      Example: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression . UNION r_expression
+      Shift derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                                                                                     `-> 39: union_expression
+                                                                                             `-> 54: r_expression . UNION r_expression
+      Reduce derivation
+        r_expression
+        `-> 39: union_expression
+                `-> 54: r_expression                                                                                UNION r_expression
+                        `-> 49: bind_expression
+                                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+
+    shift/reduce conflict on token EN_UNION:
+      105 bind_expression: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+       55 union_expression: r_expression . EN_UNION r_expression
+      Example: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression . EN_UNION r_expression
+      Shift derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                                                                                     `-> 39: union_expression
+                                                                                             `-> 55: r_expression . EN_UNION r_expression
+      Reduce derivation
+        r_expression
+        `-> 39: union_expression
+                `-> 55: r_expression                                                                                EN_UNION r_expression
+                        `-> 49: bind_expression
+                                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+
+    shift/reduce conflict on token INTERSECT:
+      105 bind_expression: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+       56 intersect_expression: r_expression . INTERSECT r_expression
+      Example: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression . INTERSECT r_expression
+      Shift derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                                                                                     `-> 40: intersect_expression
+                                                                                             `-> 56: r_expression . INTERSECT r_expression
+      Reduce derivation
+        r_expression
+        `-> 40: intersect_expression
+                `-> 56: r_expression                                                                                INTERSECT r_expression
+                        `-> 49: bind_expression
+                                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+
+    shift/reduce conflict on token EN_INTERSECT:
+      105 bind_expression: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+       57 intersect_expression: r_expression . EN_INTERSECT r_expression
+      Example: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression . EN_INTERSECT r_expression
+      Shift derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                                                                                     `-> 40: intersect_expression
+                                                                                             `-> 57: r_expression . EN_INTERSECT r_expression
+      Reduce derivation
+        r_expression
+        `-> 40: intersect_expression
+                `-> 57: r_expression                                                                                EN_INTERSECT r_expression
+                        `-> 49: bind_expression
+                                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+
+    shift/reduce conflict on token BACKSLASH:
+      105 bind_expression: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+       58 difference_expression: r_expression . BACKSLASH r_expression
+      Example: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression . BACKSLASH r_expression
+      Shift derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                                                                                     `-> 41: difference_expression
+                                                                                             `-> 58: r_expression . BACKSLASH r_expression
+      Reduce derivation
+        r_expression
+        `-> 41: difference_expression
+                `-> 58: r_expression                                                                                BACKSLASH r_expression
+                        `-> 49: bind_expression
+                                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+
+    shift/reduce conflict on token EN_DIFFERENCE:
+      105 bind_expression: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+       59 difference_expression: r_expression . EN_DIFFERENCE r_expression
+      Example: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression . EN_DIFFERENCE r_expression
+      Shift derivation
+        r_expression
+        `-> 49: bind_expression
+                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                                                                                     `-> 41: difference_expression
+                                                                                             `-> 59: r_expression . EN_DIFFERENCE r_expression
+      Reduce derivation
+        r_expression
+        `-> 41: difference_expression
+                `-> 59: r_expression                                                                                EN_DIFFERENCE r_expression
+                        `-> 49: bind_expression
+                                `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+
+    shift/reduce conflict on token BIND:
+      105 bind_expression: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+      104 bind_expression: r_expression . BIND r_expression
+      Example: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression . BIND r_expression
+      Shift derivation
+        bind_expression
+        `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                                                                             `-> 49: bind_expression
+                                                                                     `-> 104: r_expression . BIND r_expression
+      Reduce derivation
+        bind_expression
+        `-> 104: r_expression                                                                                BIND r_expression
+                 `-> 49: bind_expression
+                         `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+
+    shift/reduce conflict on token COLON:
+      105 bind_expression: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+      105 bind_expression: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Example: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Shift derivation
+        bind_expression
+        `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                                                                             `-> 49: bind_expression
+                                                                                     `-> 105: r_expression . COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+      Reduce derivation
+        bind_expression
+        `-> 105: r_expression                                                                                COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression
+                 `-> 49: bind_expression
+                         `-> 105: r_expression COLON LBRACKET bind_rules_list RBRACKET RANGLE r_expression .
+
+
+
+State 206
+
+   80 algorithm: algorithm_name DOUBLE_COLON LBRACKET r_expression RBRACKET TILDE IDENTIFIER .
+
+    $default  reduce using rule 80 (algorithm)
+
+
+State 207
+
+   81 algorithm: algorithm_name DOUBLE_COLON LBRACKET r_expression RBRACKET APPROX IDENTIFIER .
+
+    $default  reduce using rule 81 (algorithm)
+
+
+State 208
+
+   82 algorithm: algorithm_name DOUBLE_COLON LBRACKET r_expression RBRACKET DOUBLE_TILDE IDENTIFIER .
+
+    $default  reduce using rule 82 (algorithm)
+
+
+State 209
+
+   98 pattern: IDENTIFIER .
+
+    $default  reduce using rule 98 (pattern)
+
+
+State 210
+
+   92 algorithm_rule: IDENTIFIER COLON pattern . ARROW pattern
+   93               | IDENTIFIER COLON pattern . TERMINAL
+   94               | IDENTIFIER COLON pattern . EMIT_ARROW pattern COLON STRING_LITERAL
+   95               | IDENTIFIER COLON pattern . EMIT_ARROW pattern
+   96               | IDENTIFIER COLON pattern . EMIT_TERMINAL COLON STRING_LITERAL
+   97               | IDENTIFIER COLON pattern . EMIT_TERMINAL
+   99 pattern: pattern . IDENTIFIER
+
+    IDENTIFIER     shift, and go to state 194
+    ARROW          shift, and go to state 216
+    TERMINAL       shift, and go to state 217
+    EMIT_ARROW     shift, and go to state 218
+    EMIT_TERMINAL  shift, and go to state 219
+
+
+State 211
+
+   85 algorithm_rules: algorithm_rules SEMICOLON algorithm_rule .
+
+    $default  reduce using rule 85 (algorithm_rules)
+
+
+State 212
+
+   86 algorithm_rule: pattern ARROW pattern .
+   99 pattern: pattern . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 194
+
+    $default  reduce using rule 86 (algorithm_rule)
+
+
+State 213
+
+   88 algorithm_rule: pattern EMIT_ARROW pattern . COLON STRING_LITERAL
+   89               | pattern EMIT_ARROW pattern .
+   99 pattern: pattern . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 194
+    COLON       shift, and go to state 220
+
+    $default  reduce using rule 89 (algorithm_rule)
+
+
+State 214
+
+   90 algorithm_rule: pattern EMIT_TERMINAL COLON . STRING_LITERAL
+
+    STRING_LITERAL  shift, and go to state 221
+
+
+State 215
+
+   70 range_function: IDENTIFIER LPAREN NUMBER COMMA NUMBER COMMA NUMBER RPAREN .
+
+    $default  reduce using rule 70 (range_function)
+
+
+State 216
+
+   92 algorithm_rule: IDENTIFIER COLON pattern ARROW . pattern
+
+    IDENTIFIER  shift, and go to state 209
+
+    pattern  go to state 222
+
+
+State 217
+
+   93 algorithm_rule: IDENTIFIER COLON pattern TERMINAL .
+
+    $default  reduce using rule 93 (algorithm_rule)
+
+
+State 218
+
+   94 algorithm_rule: IDENTIFIER COLON pattern EMIT_ARROW . pattern COLON STRING_LITERAL
+   95               | IDENTIFIER COLON pattern EMIT_ARROW . pattern
+
+    IDENTIFIER  shift, and go to state 209
+
+    pattern  go to state 223
+
+
+State 219
+
+   96 algorithm_rule: IDENTIFIER COLON pattern EMIT_TERMINAL . COLON STRING_LITERAL
+   97               | IDENTIFIER COLON pattern EMIT_TERMINAL .
+
+    COLON  shift, and go to state 224
+
+    $default  reduce using rule 97 (algorithm_rule)
+
+
+State 220
+
+   88 algorithm_rule: pattern EMIT_ARROW pattern COLON . STRING_LITERAL
+
+    STRING_LITERAL  shift, and go to state 225
+
+
+State 221
+
+   90 algorithm_rule: pattern EMIT_TERMINAL COLON STRING_LITERAL .
+
+    $default  reduce using rule 90 (algorithm_rule)
+
+
+State 222
+
+   92 algorithm_rule: IDENTIFIER COLON pattern ARROW pattern .
+   99 pattern: pattern . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 194
+
+    $default  reduce using rule 92 (algorithm_rule)
+
+
+State 223
+
+   94 algorithm_rule: IDENTIFIER COLON pattern EMIT_ARROW pattern . COLON STRING_LITERAL
+   95               | IDENTIFIER COLON pattern EMIT_ARROW pattern .
+   99 pattern: pattern . IDENTIFIER
+
+    IDENTIFIER  shift, and go to state 194
+    COLON       shift, and go to state 226
+
+    $default  reduce using rule 95 (algorithm_rule)
+
+
+State 224
+
+   96 algorithm_rule: IDENTIFIER COLON pattern EMIT_TERMINAL COLON . STRING_LITERAL
+
+    STRING_LITERAL  shift, and go to state 227
+
+
+State 225
+
+   88 algorithm_rule: pattern EMIT_ARROW pattern COLON STRING_LITERAL .
+
+    $default  reduce using rule 88 (algorithm_rule)
+
+
+State 226
+
+   94 algorithm_rule: IDENTIFIER COLON pattern EMIT_ARROW pattern COLON . STRING_LITERAL
+
+    STRING_LITERAL  shift, and go to state 228
+
+
+State 227
+
+   96 algorithm_rule: IDENTIFIER COLON pattern EMIT_TERMINAL COLON STRING_LITERAL .
+
+    $default  reduce using rule 96 (algorithm_rule)
+
+
+State 228
+
+   94 algorithm_rule: IDENTIFIER COLON pattern EMIT_ARROW pattern COLON STRING_LITERAL .
+
+    $default  reduce using rule 94 (algorithm_rule)

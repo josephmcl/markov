@@ -20,7 +20,7 @@ size_t data_letters_bytes(void) {
 }
 
 uint8_t *data_letters_data(void) {
-    return &TheData.Letters[0];
+    return TheData.Letters;
 }
 
 bool data_letter_in_letters(lexical_store *letter) { 
@@ -135,11 +135,17 @@ void data_generate(
     return;
 }
 
+void data_free(void) {
+    free(TheData.Letters);
+    TheData = (data_Data){0};
+}
+
 const struct data Data = {
     .letters_count = data_letters_count,
     .letters_bytes = data_letters_bytes,
     .letters_data  = data_letters_data,
-    .generate      = data_generate
+    .generate      = data_generate,
+    .free          = data_free
 };
 
 /*

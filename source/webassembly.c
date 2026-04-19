@@ -114,6 +114,13 @@ typedef struct {
 
 static global_letter_table GlobalLetters = { 0 };
 
+/* Abstract-to-concrete index mapping for bound abstract algorithms.
+ * When non-NULL, decompose_to_indices uses this to map abstract letter
+ * names (a, b, c, ...) to concrete GlobalLetters indices. */
+static int *AbstractBindMap = NULL;
+static size_t AbstractBindMapSize = 0;
+static abstract_alphabet *AbstractAlph = NULL;
+
 /* String constant table for emit expressions (algorithm names, rule names, etc.) */
 #define MAX_STRING_CONSTANTS 64
 typedef struct {
@@ -226,12 +233,28 @@ static int decompose_to_indices(
         int best_index = -1;
         size_t best_len = 0;
 
-        for (int i = 0; i < GlobalLetters.count; ++i) {
-            size_t llen = GlobalLetters.entries[i].len;
-            if (llen > best_len && pos + llen <= byte_len &&
-                memcmp(&bytes[pos], GlobalLetters.entries[i].bytes, llen) == 0) {
-                best_index = i;
-                best_len = llen;
+        /* Check abstract bind map first: match abstract letter names
+         * (single or multi-char) and map to concrete indices */
+        if (AbstractBindMap != NULL && AbstractAlph != NULL) {
+            for (size_t ai = 0; ai < AbstractAlph->size; ai++) {
+                size_t nlen = AbstractAlph->names[ai].len;
+                if (nlen > best_len && pos + nlen <= byte_len &&
+                    memcmp(&bytes[pos], AbstractAlph->names[ai].bytes, nlen) == 0) {
+                    best_index = AbstractBindMap[ai];
+                    best_len = nlen;
+                }
+            }
+        }
+
+        /* Fall back to concrete letter matching */
+        if (best_index < 0) {
+            for (int i = 0; i < GlobalLetters.count; ++i) {
+                size_t llen = GlobalLetters.entries[i].len;
+                if (llen > best_len && pos + llen <= byte_len &&
+                    memcmp(&bytes[pos], GlobalLetters.entries[i].bytes, llen) == 0) {
+                    best_index = i;
+                    best_len = llen;
+                }
             }
         }
 
@@ -1179,6 +1202,101 @@ void wasm_write_rule(algorithm_definition *alg, algorithm_rule *rule, size_t rul
     WL(")"); /* end block */
 }
 
+/* Set up the abstract-to-concrete bind map for an abstract algorithm.
+ * For a positional bind, maps abstract position i to GlobalLetters index i.
+ * The bind's target alphabet determines the mapping. */
+static void setup_abstract_bind_map(algorithm_definition *alg) {
+    if (alg->abstract_alph == NULL) return;
+
+    /* Look for a bind targeting this algorithm's abstract alphabet */
+    program_context *ctx = context_root();
+    if (ctx == NULL) return;
+
+    /* For now, use positional mapping: abstract position i → GlobalLetters index i.
+     * A specified bind would permute these indices. */
+    size_t n = alg->abstract_alph->size;
+
+    /* Find a bind for this algorithm's alphabet size.
+     * Also handle late resolution: if a bind's source is a variable
+     * matching this algorithm's name, use it. */
+    alphabet_bind *bind = NULL;
+    int name_len_alg = (int)(alg->name->end - alg->name->begin);
+    for (size_t i = 0; i < ctx->binds_count; i++) {
+        syntax_store *src = ctx->binds[i]->source_alph;
+        if (src == NULL) continue;
+
+        /* Direct match: source is already resolved to abstract */
+        if (src->type == ast_abstract_size || src->type == ast_abstract_named) {
+            bind = ctx->binds[i];
+            break;
+        }
+
+        /* Late resolution: source is a variable matching this algorithm's name */
+        if (src->type == ast_variable) {
+            lexical_store *src_tok = Lex.store(src->token_index);
+            size_t src_len = src_tok->end - src_tok->begin;
+            if ((int)src_len == name_len_alg &&
+                memcmp(src_tok->begin, alg->name->begin, src_len) == 0) {
+                /* This bind references our algorithm by name — use it */
+                bind = ctx->binds[i];
+                break;
+            }
+        }
+    }
+
+    static int bind_map[MAX_ABSTRACT_LETTERS];
+    if (bind != NULL && !bind->is_universal && bind->rules_count > 0) {
+        /* Specified bind: use the rules to build the mapping */
+        for (size_t i = 0; i < n; i++) {
+            bind_map[i] = (int)i; /* default positional */
+        }
+        for (size_t i = 0; i < bind->rules_count; i++) {
+            if (bind->rules[i].type == BIND_MAP &&
+                bind->rules[i].source != NULL &&
+                bind->rules[i].target != NULL) {
+                /* Find which abstract position this source name matches */
+                size_t src_len = bind->rules[i].source->end - bind->rules[i].source->begin;
+                int abstract_pos = -1;
+                for (size_t ap = 0; ap < n; ap++) {
+                    if (alg->abstract_alph->names[ap].len == src_len &&
+                        memcmp(alg->abstract_alph->names[ap].bytes,
+                               bind->rules[i].source->begin, src_len) == 0) {
+                        abstract_pos = (int)ap;
+                        break;
+                    }
+                }
+                if (abstract_pos >= 0) {
+                    /* Find which GlobalLetters index the target letter is */
+                    for (int g = 0; g < GlobalLetters.count; g++) {
+                        size_t tgt_len = bind->rules[i].target->end - bind->rules[i].target->begin;
+                        if (GlobalLetters.entries[g].len == tgt_len &&
+                            memcmp(GlobalLetters.entries[g].bytes,
+                                   bind->rules[i].target->begin, tgt_len) == 0) {
+                            bind_map[abstract_pos] = g;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        /* Universal/positional bind: position i → GlobalLetters index i */
+        for (size_t i = 0; i < n; i++) {
+            bind_map[i] = (int)i;
+        }
+    }
+
+    AbstractBindMap = bind_map;
+    AbstractBindMapSize = n;
+    AbstractAlph = alg->abstract_alph;
+}
+
+static void clear_abstract_bind_map(void) {
+    AbstractBindMap = NULL;
+    AbstractBindMapSize = 0;
+    AbstractAlph = NULL;
+}
+
 /* Write a single algorithm as a WASM function */
 void wasm_write_algorithm(algorithm_definition *alg, size_t index) {
     if (alg == NULL || alg->name == NULL) return;
@@ -1210,6 +1328,7 @@ void wasm_write_algorithm(algorithm_definition *alg, size_t index) {
     WL("(local $i i32)         ;; Scan position");
     WL("(local $matched i32)   ;; Flag: did we match a rule?");
     WL("(local $terminated i32) ;; Flag: hit terminal rule?");
+    WL("(local $steps i32)     ;; Step counter for termination detection");
 
     if (algorithm_has_emit_rules(alg)) {
         WL("(local $emit_ptr i32)      ;; Emit buffer write position");
@@ -1217,13 +1336,20 @@ void wasm_write_algorithm(algorithm_definition *alg, size_t index) {
         WL("(local $pre_word_len i32)  ;; Word length before substitution");
     }
 
+    /* Set up abstract bind map if this is an abstract algorithm */
+    setup_abstract_bind_map(alg);
+
     /* Main Markov loop */
     WN();
-    WL(";; Main loop: keep applying rules until terminated or no match");
+    WL(";; Main loop: keep applying rules until terminated, no match, or max steps");
     WL("(block $done");
     WI();
     WL("(loop $apply_rules");
     WI();
+
+    /* Check step limit (10000 iterations) */
+    WL("(br_if $done (i32.ge_u (local.get $steps) (i32.const 10000)))");
+    WL("(local.set $steps (i32.add (local.get $steps) (i32.const 1)))");
 
     /* Reset flags each iteration */
     WL("(local.set $matched (i32.const 0))");
@@ -1261,6 +1387,8 @@ void wasm_write_algorithm(algorithm_definition *alg, size_t index) {
 
     WD();
     WL(")");
+
+    clear_abstract_bind_map();
 }
 
 /* Write a step function for an algorithm — applies one Markov iteration */
@@ -1301,6 +1429,9 @@ void wasm_write_algorithm_step(algorithm_definition *alg, size_t index) {
         WL("(local $match_start i32)   ;; Saved match position for emit");
         WL("(local $pre_word_len i32)  ;; Word length before substitution");
     }
+
+    /* Set up abstract bind map if this is an abstract algorithm */
+    setup_abstract_bind_map(alg);
 
     /* No outer loop — just one pass through all rules */
     WN();
@@ -1350,6 +1481,8 @@ void wasm_write_algorithm_step(algorithm_definition *alg, size_t index) {
 
     WD();
     WL(")");
+
+    clear_abstract_bind_map();
 }
 
 /* Recursively write algorithms from a context and all nested contexts */
@@ -1462,9 +1595,67 @@ void wasm_write_start_function(void) {
         }
         case CALL_VARIABLE: {
             /* Resolve variable to its word literal value at compile time.
-             * For now, treat the variable name as an identifier to look up.
-             * TODO: resolve word variables properly. For now, skip. */
-            WL(";; TODO: variable word input not yet implemented in codegen");
+             * Search the AST for an assignment to this variable name. */
+            if (call->input_token == NULL) break;
+            size_t var_len = call->input_token->end - call->input_token->begin;
+
+            /* Find the assignment's right-hand side */
+            const uint8_t *word_str = NULL;
+            size_t word_str_len = 0;
+            syntax_store *tree = Syntax.tree();
+            for (size_t si = 0; si < Syntax.info->count; si++) {
+                syntax_store *node = &tree[-((int)si)];
+                if (node->type == ast_assignment_statement &&
+                    node->size >= 2 &&
+                    node->content[0] != NULL &&
+                    node->content[1] != NULL) {
+                    lexical_store *assign_var = Lex.store(node->content[0]->token_index);
+                    size_t assign_len = assign_var->end - assign_var->begin;
+                    if (assign_len == var_len &&
+                        memcmp(assign_var->begin, call->input_token->begin, var_len) == 0) {
+                        /* Found — get the string literal value */
+                        syntax_store *rhs = node->content[1];
+                        lexical_store *rhs_tok = NULL;
+                        /* Handle word_in_expression: content[0] is word_literal */
+                        if (rhs->type == ast_word_in_expression && rhs->size >= 1) {
+                            rhs = rhs->content[0];
+                        }
+                        if (rhs->type == ast_word_literal) {
+                            rhs_tok = Lex.store(rhs->token_index);
+                        } else {
+                            /* Try using the rhs token directly as string */
+                            rhs_tok = Lex.store(rhs->token_index);
+                        }
+                        if (rhs_tok != NULL && rhs_tok->token == TOKEN_STRING_LITERAL) {
+                            word_str = rhs_tok->begin + 1; /* skip opening quote */
+                            word_str_len = (rhs_tok->end - rhs_tok->begin) - 2;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (word_str != NULL) {
+                /* Same as CALL_LITERAL */
+                snprintf(buf, sizeof(buf), "(local.set $scratch (i32.const %d))", CALL_SCRATCH_BASE);
+                WL(buf);
+                for (size_t i = 0; i < word_str_len; i++) {
+                    snprintf(buf, sizeof(buf),
+                        "(i32.store8 (i32.add (local.get $scratch) (i32.const %zu)) (i32.const %d))",
+                        i, word_str[i]);
+                    WL(buf);
+                }
+                snprintf(buf, sizeof(buf),
+                    "(local.set $byte_len (i32.const %zu))", word_str_len);
+                WL(buf);
+                WL("(local.set $index_count (call $encode_word (local.get $scratch) (local.get $byte_len)))");
+                snprintf(buf, sizeof(buf),
+                    "(local.set $result_len (call $%.*s (i32.const %d) (local.get $index_count)))",
+                    name_len, call->algorithm_name->begin, WORD_BUFFER_BASE);
+                WL(buf);
+            } else {
+                WL(";; Warning: could not resolve variable word input");
+            }
             break;
         }
         case CALL_STDIN: {
@@ -1480,6 +1671,52 @@ void wasm_write_start_function(void) {
             WL("(local.set $index_count (call $encode_word (local.get $scratch) (local.get $byte_len)))");
 
             /* Call the algorithm */
+            snprintf(buf, sizeof(buf),
+                "(local.set $result_len (call $%.*s (i32.const %d) (local.get $index_count)))",
+                name_len, call->algorithm_name->begin, WORD_BUFFER_BASE);
+            WL(buf);
+            break;
+        }
+        case CALL_COMPOSED: {
+            /* Composed call: sort(reverse("..."))
+             * Run the inner call first, then use its result as input */
+            if (call->inner_call == NULL) break;
+            algorithm_call *inner = call->inner_call;
+
+            if (inner->algorithm_name == NULL) break;
+            int inner_name_len = (int)(inner->algorithm_name->end - inner->algorithm_name->begin);
+
+            /* Generate code for inner call's input */
+            if (inner->input_type == CALL_LITERAL && inner->input_token != NULL) {
+                const uint8_t *str = inner->input_token->begin + 1;
+                size_t str_len = (inner->input_token->end - inner->input_token->begin) - 2;
+                snprintf(buf, sizeof(buf), "(local.set $scratch (i32.const %d))", CALL_SCRATCH_BASE);
+                WL(buf);
+                for (size_t i = 0; i < str_len; i++) {
+                    snprintf(buf, sizeof(buf),
+                        "(i32.store8 (i32.add (local.get $scratch) (i32.const %zu)) (i32.const %d))",
+                        i, str[i]);
+                    WL(buf);
+                }
+                snprintf(buf, sizeof(buf), "(local.set $byte_len (i32.const %zu))", str_len);
+                WL(buf);
+                WL("(local.set $index_count (call $encode_word (local.get $scratch) (local.get $byte_len)))");
+            } else if (inner->input_type == CALL_STDIN) {
+                snprintf(buf, sizeof(buf), "(local.set $scratch (i32.const %d))", CALL_SCRATCH_BASE);
+                WL(buf);
+                snprintf(buf, sizeof(buf),
+                    "(local.set $byte_len (call $read (local.get $scratch) (i32.const %d)))", 4096);
+                WL(buf);
+                WL("(local.set $index_count (call $encode_word (local.get $scratch) (local.get $byte_len)))");
+            }
+
+            /* Run inner algorithm */
+            snprintf(buf, sizeof(buf),
+                "(local.set $index_count (call $%.*s (i32.const %d) (local.get $index_count)))",
+                inner_name_len, inner->algorithm_name->begin, WORD_BUFFER_BASE);
+            WL(buf);
+
+            /* Run outer algorithm on the result (already in word buffer as indices) */
             snprintf(buf, sizeof(buf),
                 "(local.set $result_len (call $%.*s (i32.const %d) (local.get $index_count)))",
                 name_len, call->algorithm_name->begin, WORD_BUFFER_BASE);

@@ -35,6 +35,7 @@ typedef enum {
     ast_abstract_size,       // [N] - abstract alphabet with N letters
     ast_abstract_alphabet,   // [N] + {concrete} - abstract + concrete combination
     // Algorithm types
+    ast_abstract_named,      // [greater, lesser] - named abstract alphabet
     ast_algorithm,           // A::B { rules } - algorithm definition
     ast_algorithm_rules,     // list of rules in algorithm body
     ast_algorithm_rule,      // P -> Q or P -. (substitution/terminal rule)
@@ -42,6 +43,12 @@ typedef enum {
     ast_rule_name,           // optional name prefix on algorithm rule
     ast_emit_expression,     // emit string with ~interpolation
     ast_algorithm_call,      // swap("□□■"), swap(w), swap(~) — algorithm invocation
+    ast_range_literal,       // 0..5 — range of integers
+    ast_range_function,      // range(0, 10, 2) — range with step
+    ast_equivalence,         // sort ::= bsort or sort ::[r]~ bsort
+    ast_bind_expression,     // [2] :> {□, ■} or [2] :[rules]> {□, ■}
+    ast_bind_rule,           // a:□, △:, c.b, !d — individual bind rule
+    ast_bind_rules_list,     // list of bind rules
 } syntax_store_type;
 
 typedef struct {
@@ -59,10 +66,6 @@ typedef struct sstore {
     bool prune;
 } syntax_store;
 
-syntax_store **syntax_realloc(
-    syntax_store **stores, 
-    size_t        *count, 
-    size_t        *capacity);
 
 struct syntax {
     syntax_store  *(  *tree) (void); /* NOTE: to get around const. */

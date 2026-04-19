@@ -222,8 +222,8 @@ int analyze() {
         token_length = next.end - next.begin;
         TheInfo.line_length += token_length + next.begin - TheInfo.current;
 
-        next.row = TheInfo.line_length;
-        next.column = TheInfo.columns + 1;
+        next.row = TheInfo.rows;
+        next.column = TheInfo.line_length + 1;
 
         switch (next.token) {
         case TOKEN_LINE_END: {
@@ -369,6 +369,11 @@ int lexer_get_token_bison_compat(size_t index) {
         case TOKEN_RPAREN: return RPAREN;
         case TOKEN_COLON: return COLON;
         case TOKEN_TILDE: return TILDE;
+        case TOKEN_BIND: return BIND;
+        case TOKEN_RULE_EQ: return RULE_EQ;
+        case TOKEN_APPROX: return APPROX;
+        case TOKEN_DOUBLE_TILDE: return DOUBLE_TILDE;
+        case TOKEN_EXCLAIM: return EXCLAIM;
         default: {
             printf("stray token, %d\n", token);
             return TOKEN_UNSUPPORTED_BY_PARSER;

@@ -16,5 +16,11 @@ int main(int argc, char **argv) {
     WebAssembly.use_stdout();
     WebAssembly.generate(&Data);
 
+    /* Free all memory */
+    Context.free();
+    Data.free();
+    Syntax.free();
+    Lex.free();
+
     return 0;
 }
