@@ -598,42 +598,17 @@ syntax_store *_update_context_bind(
 
     /* Resolve variable indirection on source alphabet.
        Handles: a :> squares (where a = [greater, lesser])
-       Also:    sort :> squares (where sort is an algorithm over [N]) */
+       Also:    sort :> squares (where sort is an algorithm over [N])
+       Algorithm-name late resolution happens in validate_binds() since the
+       AST walk processes binds before algorithms. */
     if (bind->source_alph != NULL && bind->source_alph->type == ast_variable) {
         lexical_store *var_tok = Lex.store(bind->source_alph->token_index);
         syntax_store *resolved = resolve_variable_assignment(var_tok);
         if (resolved != NULL &&
             (resolved->type == ast_abstract_size ||
-             resolved->type == ast_abstract_named)) {
+             resolved->type == ast_abstract_named ||
+             resolved->type == ast_alphabet_body)) {
             bind->source_alph = resolved;
-        } else {
-            /* Check if the variable is an algorithm name — resolve to
-               its alphabet_ref (the :: accessor) */
-            size_t var_len = var_tok->end - var_tok->begin;
-            for (size_t ai = 0; ai < context[index].algorithms_count; ai++) {
-                algorithm_definition *alg = context[index].algorithms[ai];
-                if (alg->name != NULL) {
-                    size_t name_len = alg->name->end - alg->name->begin;
-                    if (name_len == var_len &&
-                        memcmp(alg->name->begin, var_tok->begin, var_len) == 0) {
-                        /* Found the algorithm — use its alphabet_ref */
-                        if (alg->abstract_alph != NULL && alg->alphabet_ref != NULL) {
-                            bind->source_alph = alg->alphabet_ref;
-                            /* Re-resolve if it's a variable pointing to abstract */
-                            if (bind->source_alph->type == ast_variable) {
-                                syntax_store *r2 = resolve_variable_assignment(
-                                    Lex.store(bind->source_alph->token_index));
-                                if (r2 != NULL &&
-                                    (r2->type == ast_abstract_size ||
-                                     r2->type == ast_abstract_named)) {
-                                    bind->source_alph = r2;
-                                }
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
         }
     }
     bind->is_universal = (store->size < 3 || store->content[2] == NULL);
@@ -712,6 +687,61 @@ syntax_store *_update_context_bind(
 
     _context_push_bind(&context[index], bind);
     return NULL;
+}
+
+/* ======================================================================== */
+/* Post-pass bind validation                                                 */
+/* ======================================================================== */
+
+/* After the AST walk, try to resolve any bind whose source is still an
+   unresolved variable against the now-registered algorithms. Reports a
+   source-located error if the variable is neither an alphabet nor an
+   algorithm name. Returns the number of errors found. */
+size_t validate_binds(program_context *ctx_root, size_t ctx_count) {
+    size_t errors = 0;
+    for (size_t ci = 0; ci < ctx_count; ci++) {
+        program_context *ctx = &ctx_root[ci];
+        for (size_t bi = 0; bi < ctx->binds_count; bi++) {
+            alphabet_bind *bind = ctx->binds[bi];
+            if (bind == NULL || bind->source_alph == NULL) continue;
+            if (bind->source_alph->type != ast_variable) continue;
+
+            lexical_store *var_tok = Lex.store(bind->source_alph->token_index);
+            size_t var_len = var_tok->end - var_tok->begin;
+            bool matched = false;
+            for (size_t ai = 0; ai < ctx->algorithms_count; ai++) {
+                algorithm_definition *alg = ctx->algorithms[ai];
+                if (alg->name == NULL) continue;
+                size_t name_len = alg->name->end - alg->name->begin;
+                if (name_len == var_len &&
+                    memcmp(alg->name->begin, var_tok->begin, var_len) == 0) {
+                    matched = true;
+                    if (alg->abstract_alph != NULL && alg->alphabet_ref != NULL) {
+                        bind->source_alph = alg->alphabet_ref;
+                        if (bind->source_alph->type == ast_variable) {
+                            syntax_store *r2 = resolve_variable_assignment(
+                                Lex.store(bind->source_alph->token_index));
+                            if (r2 != NULL &&
+                                (r2->type == ast_abstract_size ||
+                                 r2->type == ast_abstract_named)) {
+                                bind->source_alph = r2;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+
+            if (!matched) {
+                fprintf(stderr, "%s:%u:%u: error: "
+                    "bind source '%.*s' is not an alphabet or algorithm name\n",
+                    Lex.file->name, var_tok->row, var_tok->column,
+                    (int)var_len, var_tok->begin);
+                errors++;
+            }
+        }
+    }
+    return errors;
 }
 
 /* ======================================================================== */

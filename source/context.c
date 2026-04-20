@@ -8,6 +8,7 @@ extern syntax_store *_update_context_algorithm_call(
     syntax_store *, program_context_info *, program_context *);
 extern syntax_store *_update_context_bind(
     syntax_store *, program_context_info *, program_context *);
+extern size_t validate_binds(program_context *ctx_root, size_t ctx_count);
 
 /* Report an error with source location from a token */
 static void report_error(lexical_store *tok, const char *msg) {
@@ -1158,6 +1159,10 @@ void validate_program_context (void) {
     for (size_t i = 0; i < TheInfo.count; ++i) {
         _validate_context_expressions(context_root() + i);
     }
+
+    /* Resolve/validate bind sources against registered algorithms (deferred
+       because the AST walk visits binds before the algorithm they name). */
+    validate_binds(context_root(), TheInfo.count);
 
     /* Process equivalence statements (deferred from AST walk so
        algorithms are registered first) */
