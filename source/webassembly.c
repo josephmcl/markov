@@ -1297,6 +1297,31 @@ static void setup_abstract_bind_map(algorithm_definition *alg,
     AbstractBindMap = bind_map;
     AbstractBindMapSize = n;
     AbstractAlph = alg->abstract_alph;
+
+    fprintf(stderr, "DEBUG setup_bind: alg=%.*s rules=%zu map=[",
+        (int)(alg->name->end - alg->name->begin), alg->name->begin,
+        bind ? bind->rules_count : 0);
+    for (size_t i = 0; i < n; i++) {
+        fprintf(stderr, "%s%d", i > 0 ? "," : "", bind_map[i]);
+    }
+    fprintf(stderr, "] ");
+    if (bind && !bind->is_universal) {
+        for (size_t i = 0; i < bind->rules_count; i++) {
+            if (bind->rules[i].source && bind->rules[i].target) {
+                fprintf(stderr, "rule[%zu]=%.*s:%.*s ", i,
+                    (int)(bind->rules[i].source->end - bind->rules[i].source->begin),
+                    bind->rules[i].source->begin,
+                    (int)(bind->rules[i].target->end - bind->rules[i].target->begin),
+                    bind->rules[i].target->begin);
+            }
+        }
+    }
+    fprintf(stderr, "GlobalLetters=[");
+    for (int g = 0; g < GlobalLetters.count; g++) {
+        fprintf(stderr, "%s%.*s", g > 0 ? "," : "",
+            (int)GlobalLetters.entries[g].len, GlobalLetters.entries[g].bytes);
+    }
+    fprintf(stderr, "]\n");
 }
 
 static void clear_abstract_bind_map(void) {
