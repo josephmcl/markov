@@ -664,10 +664,10 @@ typedef enum {
     EMIT_LIT,    /* literal text bytes */
     EMIT_WORD,   /* ~ or ~word: full word after replacement */
     EMIT_WAS,    /* ~0 or ~was: full word before replacement */
-    EMIT_LEFT,   /* ~l or ~left: prefix before match */
-    EMIT_POST,   /* ~p or ~post: postfix after replacement */
+    EMIT_LEFT,   /* ~p or ~prefix: prefix before match */
+    EMIT_POST,   /* ~s or ~suffix: suffix after replacement */
     EMIT_MATCH,  /* ~m or ~match: matched pattern text */
-    EMIT_SUB,    /* ~s or ~sub: replacement text */
+    EMIT_SUB,    /* ~r or ~sub: replacement text */
     EMIT_ALG,    /* ~a or ~alg: algorithm name */
     EMIT_NAME,   /* ~n or ~name: rule name */
 } emit_segment_type;
@@ -715,14 +715,15 @@ static int parse_emit_template(
             emit_segment_type var_type = EMIT_WORD;
             size_t advance = 0;
 
-            if (pos + 3 < str_len && memcmp(&str[pos], "word", 4) == 0) {
+            /* Long forms first (longest first for disambiguation) */
+            if (pos + 5 < str_len && memcmp(&str[pos], "prefix", 6) == 0) {
+                var_type = EMIT_LEFT; advance = 6;
+            } else if (pos + 5 < str_len && memcmp(&str[pos], "suffix", 6) == 0) {
+                var_type = EMIT_POST; advance = 6;
+            } else if (pos + 3 < str_len && memcmp(&str[pos], "word", 4) == 0) {
                 var_type = EMIT_WORD; advance = 4;
             } else if (pos + 2 < str_len && memcmp(&str[pos], "was", 3) == 0) {
                 var_type = EMIT_WAS; advance = 3;
-            } else if (pos + 3 < str_len && memcmp(&str[pos], "left", 4) == 0) {
-                var_type = EMIT_LEFT; advance = 4;
-            } else if (pos + 3 < str_len && memcmp(&str[pos], "post", 4) == 0) {
-                var_type = EMIT_POST; advance = 4;
             } else if (pos + 4 < str_len && memcmp(&str[pos], "match", 5) == 0) {
                 var_type = EMIT_MATCH; advance = 5;
             } else if (pos + 2 < str_len && memcmp(&str[pos], "sub", 3) == 0) {
@@ -731,16 +732,17 @@ static int parse_emit_template(
                 var_type = EMIT_ALG; advance = 3;
             } else if (pos + 3 < str_len && memcmp(&str[pos], "name", 4) == 0) {
                 var_type = EMIT_NAME; advance = 4;
+            /* Short forms */
             } else if (str[pos] == '0') {
                 var_type = EMIT_WAS; advance = 1;
-            } else if (str[pos] == 'l') {
-                var_type = EMIT_LEFT; advance = 1;
             } else if (str[pos] == 'p') {
-                var_type = EMIT_POST; advance = 1;
+                var_type = EMIT_LEFT; advance = 1;    /* ~p = prefix */
+            } else if (str[pos] == 's') {
+                var_type = EMIT_POST; advance = 1;    /* ~s = suffix */
+            } else if (str[pos] == 'r') {
+                var_type = EMIT_SUB; advance = 1;     /* ~r = replacement (sub) */
             } else if (str[pos] == 'm') {
                 var_type = EMIT_MATCH; advance = 1;
-            } else if (str[pos] == 's') {
-                var_type = EMIT_SUB; advance = 1;
             } else if (str[pos] == 'a') {
                 var_type = EMIT_ALG; advance = 1;
             } else if (str[pos] == 'n') {
