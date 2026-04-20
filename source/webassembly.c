@@ -1663,6 +1663,7 @@ static size_t program_call_count(void) {
 }
 
 #define CALL_SCRATCH_BASE 20480
+#define STDIN_BUFFER_BASE 24576
 
 /* Generate the $_start function that sequences all algorithm calls */
 void wasm_write_start_function(void) {
@@ -1676,6 +1677,8 @@ void wasm_write_start_function(void) {
     WL(";; Entry Point");
     WL(";; ========================================");
 
+    bool has_stdin = program_has_stdin_calls();
+
     WN();
     WL("(func $_start (export \"_start\")");
     WI();
@@ -1683,7 +1686,21 @@ void wasm_write_start_function(void) {
     WL("(local $byte_len i32)");
     WL("(local $index_count i32)");
     WL("(local $result_len i32)");
+    if (has_stdin) {
+        WL("(local $stdin_len i32)");
+    }
     WN();
+
+    if (has_stdin) {
+        /* Read stdin once up-front so repeated (~) calls all see the same
+           input instead of competing for a consumable stream. */
+        WL(";; Cache stdin once so repeated (~) arguments reuse it");
+        snprintf(buf, sizeof(buf),
+            "(local.set $stdin_len (call $read (i32.const %d) (i32.const %d)))",
+            STDIN_BUFFER_BASE, 4096);
+        WL(buf);
+        WN();
+    }
 
     for (size_t c = 0; c < ctx->calls_count; c++) {
         algorithm_call *call = ctx->calls[c];
@@ -1804,16 +1821,12 @@ void wasm_write_start_function(void) {
             break;
         }
         case CALL_STDIN: {
-            /* Call $read host function to get input, then encode and run */
-            snprintf(buf, sizeof(buf), "(local.set $scratch (i32.const %d))", CALL_SCRATCH_BASE);
-            WL(buf);
+            /* Re-encode from the stdin cache each call — $read was invoked
+               once up-front above. */
             snprintf(buf, sizeof(buf),
-                "(local.set $byte_len (call $read (local.get $scratch) (i32.const %d)))",
-                4096); /* max read size */
+                "(local.set $index_count (call $encode_word (i32.const %d) (local.get $stdin_len)))",
+                STDIN_BUFFER_BASE);
             WL(buf);
-
-            /* Encode raw bytes -> letter indices */
-            WL("(local.set $index_count (call $encode_word (local.get $scratch) (local.get $byte_len)))");
 
             /* Call the algorithm */
             snprintf(buf, sizeof(buf),
@@ -1847,12 +1860,10 @@ void wasm_write_start_function(void) {
                 WL(buf);
                 WL("(local.set $index_count (call $encode_word (local.get $scratch) (local.get $byte_len)))");
             } else if (inner->input_type == CALL_STDIN) {
-                snprintf(buf, sizeof(buf), "(local.set $scratch (i32.const %d))", CALL_SCRATCH_BASE);
-                WL(buf);
                 snprintf(buf, sizeof(buf),
-                    "(local.set $byte_len (call $read (local.get $scratch) (i32.const %d)))", 4096);
+                    "(local.set $index_count (call $encode_word (i32.const %d) (local.get $stdin_len)))",
+                    STDIN_BUFFER_BASE);
                 WL(buf);
-                WL("(local.set $index_count (call $encode_word (local.get $scratch) (local.get $byte_len)))");
             }
 
             /* Run inner algorithm */
