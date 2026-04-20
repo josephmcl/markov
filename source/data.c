@@ -104,9 +104,12 @@ void data_generate(
     lexical_store *letter;
     syntax_store *tree, *current;
     
+    /* Walk in source order (oldest-first) so letters end up in the same
+       order the user wrote them — e.g. {□, ■} registers □ before ■. */
     tree = Syntax->tree();
-    for (size_t i = 0; i < Syntax->info->count; ++i) {
-        current = tree - i;
+    size_t n = Syntax->info->count;
+    for (size_t i = 0; i < n; ++i) {
+        current = tree - (n - 1 - i);
         if (current->type == ast_letter) {
             letter = Lex->store(current->token_index);
             data_push_letter(letter);
