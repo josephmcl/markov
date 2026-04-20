@@ -93,12 +93,11 @@ lexical_store lexer_next() {
         rv.end = head + 1;
         rv.token = token;
     }
-    /* LINE_COMMENT 
+    /* LINE_COMMENT */
     else if ((offset = line_comment(head, TheFile.end)) != head) {
         rv.end = offset;
-        rv.token = LINE_COMMENT;
+        rv.token = TOKEN_LINE_COMMENT;
     }
-    */
     
     /* STRING LITERAL */
     else if ((offset = string_literal(head, TheFile.end)) != head) {
@@ -330,6 +329,7 @@ int lexer_get_token_bison_compat(size_t index) {
     switch (token) {
         case TOKEN_END_OF_CONTENT: return TOKEN_END_OF_CONTENT;
         case TOKEN_LINE_END: return TOKEN_UNUSED_BY_PARSER;
+        case TOKEN_LINE_COMMENT: return TOKEN_UNUSED_BY_PARSER;
         case TOKEN_IDENTIFIER: return IDENTIFIER;
         case TOKEN_STRING_LITERAL: return STRING_LITERAL;
         case TOKEN_IN: return IN;
