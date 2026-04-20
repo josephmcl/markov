@@ -681,11 +681,6 @@ syntax_store *_update_context_bind(
                 }
                 entry->source = Lex.store(rule_node->content[0]->token_index);
                 entry->target = Lex.store(rule_node->content[1]->token_index);
-                fprintf(stderr, "DEBUG bind_rule[%zu]: src_tok_idx=%zu('%.*s') tgt_tok_idx=%zu('%.*s')\n",
-                    i, rule_node->content[0]->token_index,
-                    (int)(entry->source->end - entry->source->begin), entry->source->begin,
-                    rule_node->content[1]->token_index,
-                    (int)(entry->target->end - entry->target->begin), entry->target->begin);
             }
         }
     }
