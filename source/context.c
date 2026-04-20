@@ -1151,6 +1151,29 @@ void validate_program_context (void) {
         }
     }
 
+    /* The reverse walk above visits parents before children, which is
+       needed to set up scope contexts first. But within each scope it
+       also reverses the order of calls/binds/algorithms relative to
+       source. Flip them back so they run in the order written. */
+    for (size_t ci = 0; ci < TheInfo.count; ++ci) {
+        program_context *ctx = &TheContext[ci];
+        for (size_t i = 0, j = ctx->calls_count; i + 1 < j; ++i, --j) {
+            algorithm_call *tmp = ctx->calls[i];
+            ctx->calls[i] = ctx->calls[j - 1];
+            ctx->calls[j - 1] = tmp;
+        }
+        for (size_t i = 0, j = ctx->binds_count; i + 1 < j; ++i, --j) {
+            alphabet_bind *tmp = ctx->binds[i];
+            ctx->binds[i] = ctx->binds[j - 1];
+            ctx->binds[j - 1] = tmp;
+        }
+        for (size_t i = 0, j = ctx->algorithms_count; i + 1 < j; ++i, --j) {
+            algorithm_definition *tmp = ctx->algorithms[i];
+            ctx->algorithms[i] = ctx->algorithms[j - 1];
+            ctx->algorithms[j - 1] = tmp;
+        }
+    }
+
     for (size_t i = 0; i < TheInfo.count; ++i) {
         update_program_context_letter_data(context_root() + i);
     }
