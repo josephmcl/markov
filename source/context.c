@@ -1468,7 +1468,12 @@ void validate_program_context (void) {
         for (size_t j = 0; j < TheContext[i].calls_count; ++j) {
             algorithm_call *call = TheContext[i].calls[j];
             int name_size = (int)(call->algorithm_name->end - call->algorithm_name->begin);
-            printf("| | %.*s(", name_size, call->algorithm_name->begin);
+            printf("| | %.*s", name_size, call->algorithm_name->begin);
+            if (call->selected_bind != NULL) {
+                int b_size = (int)(call->selected_bind->end - call->selected_bind->begin);
+                printf(" :: %.*s", b_size, call->selected_bind->begin);
+            }
+            printf("(");
             if (call->input_type == CALL_STDIN) {
                 printf("~");
             } else if (call->input_token != NULL) {

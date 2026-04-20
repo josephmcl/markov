@@ -103,6 +103,7 @@ struct acall {
     algorithm_call_type input_type;
     lexical_store      *input_token;     /* string literal or variable name, NULL for stdin */
     struct acall       *inner_call;      /* nested call for CALL_COMPOSED, NULL otherwise */
+    lexical_store      *selected_bind;   /* explicit bind name (sort::b1(...)), NULL for auto */
 };
 
 /* Range set: finite, enumerable set of non-negative integers */

@@ -309,7 +309,10 @@ void wasm_write_memory(void);
 void wasm_write_letter_data(struct data *Data);
 void wasm_write_helper_functions(void);
 void wasm_write_algorithms(void);
-void wasm_write_algorithm(algorithm_definition *alg, size_t index);
+void wasm_write_algorithm(algorithm_definition *alg, size_t index,
+                          alphabet_bind *bind_override);
+void wasm_write_algorithm_step(algorithm_definition *alg, size_t index,
+                               alphabet_bind *bind_override);
 void wasm_write_rule(algorithm_definition *alg, algorithm_rule *rule, size_t rule_num);
 void wasm_write_context_algorithms(program_context *ctx);
 
@@ -1206,8 +1209,9 @@ void wasm_write_rule(algorithm_definition *alg, algorithm_rule *rule, size_t rul
 
 /* Set up the abstract-to-concrete bind map for an abstract algorithm.
  * For a positional bind, maps abstract position i to GlobalLetters index i.
- * The bind's target alphabet determines the mapping. */
-static void setup_abstract_bind_map(algorithm_definition *alg) {
+ * If bind_override is non-NULL, it is used directly instead of auto-selecting. */
+static void setup_abstract_bind_map(algorithm_definition *alg,
+                                    alphabet_bind *bind_override) {
     if (alg->abstract_alph == NULL) return;
 
     /* Look for a bind targeting this algorithm's abstract alphabet */
@@ -1221,27 +1225,29 @@ static void setup_abstract_bind_map(algorithm_definition *alg) {
     /* Find a bind for this algorithm's alphabet size.
      * Also handle late resolution: if a bind's source is a variable
      * matching this algorithm's name, use it. */
-    alphabet_bind *bind = NULL;
-    int name_len_alg = (int)(alg->name->end - alg->name->begin);
-    for (size_t i = 0; i < ctx->binds_count; i++) {
-        syntax_store *src = ctx->binds[i]->source_alph;
-        if (src == NULL) continue;
+    alphabet_bind *bind = bind_override;
+    if (bind == NULL) {
+        int name_len_alg = (int)(alg->name->end - alg->name->begin);
+        for (size_t i = 0; i < ctx->binds_count; i++) {
+            syntax_store *src = ctx->binds[i]->source_alph;
+            if (src == NULL) continue;
 
-        /* Direct match: source is already resolved to abstract */
-        if (src->type == ast_abstract_size || src->type == ast_abstract_named) {
-            bind = ctx->binds[i];
-            break;
-        }
-
-        /* Late resolution: source is a variable matching this algorithm's name */
-        if (src->type == ast_variable) {
-            lexical_store *src_tok = Lex.store(src->token_index);
-            size_t src_len = src_tok->end - src_tok->begin;
-            if ((int)src_len == name_len_alg &&
-                memcmp(src_tok->begin, alg->name->begin, src_len) == 0) {
-                /* This bind references our algorithm by name — use it */
+            /* Direct match: source is already resolved to abstract */
+            if (src->type == ast_abstract_size || src->type == ast_abstract_named) {
                 bind = ctx->binds[i];
                 break;
+            }
+
+            /* Late resolution: source is a variable matching this algorithm's name */
+            if (src->type == ast_variable) {
+                lexical_store *src_tok = Lex.store(src->token_index);
+                size_t src_len = src_tok->end - src_tok->begin;
+                if ((int)src_len == name_len_alg &&
+                    memcmp(src_tok->begin, alg->name->begin, src_len) == 0) {
+                    /* This bind references our algorithm by name — use it */
+                    bind = ctx->binds[i];
+                    break;
+                }
             }
         }
     }
@@ -1299,24 +1305,45 @@ static void clear_abstract_bind_map(void) {
     AbstractAlph = NULL;
 }
 
-/* Write a single algorithm as a WASM function */
-void wasm_write_algorithm(algorithm_definition *alg, size_t index) {
+/* Write a single algorithm as a WASM function.
+ * If bind_override is non-NULL, the exported name is suffixed with "$bindname"
+ * and that bind's mapping is used in place of auto-selection. */
+void wasm_write_algorithm(algorithm_definition *alg, size_t index,
+                          alphabet_bind *bind_override) {
     if (alg == NULL || alg->name == NULL) return;
 
     int name_len = (int)(alg->name->end - alg->name->begin);
+    const char *bind_name = NULL;
+    int bind_name_len = 0;
+    if (bind_override != NULL && bind_override->name != NULL) {
+        bind_name = (const char *)bind_override->name->begin;
+        bind_name_len = (int)(bind_override->name->end - bind_override->name->begin);
+    }
 
     WN();
     Wat.indent();
     Wat.str(";; Algorithm: ");
     Wat.s((const char *)alg->name->begin, name_len);
+    if (bind_name != NULL) {
+        Wat.str(" :: ");
+        Wat.s(bind_name, bind_name_len);
+    }
     WN();
 
     /* Function signature */
     Wat.indent();
     Wat.str("(func $");
     Wat.s((const char *)alg->name->begin, name_len);
+    if (bind_name != NULL) {
+        Wat.str("$");
+        Wat.s(bind_name, bind_name_len);
+    }
     Wat.str(" (export \"");
     Wat.s((const char *)alg->name->begin, name_len);
+    if (bind_name != NULL) {
+        Wat.str("$");
+        Wat.s(bind_name, bind_name_len);
+    }
     Wat.str("\")");
     WN();
 
@@ -1339,7 +1366,7 @@ void wasm_write_algorithm(algorithm_definition *alg, size_t index) {
     }
 
     /* Set up abstract bind map if this is an abstract algorithm */
-    setup_abstract_bind_map(alg);
+    setup_abstract_bind_map(alg, bind_override);
 
     /* Main Markov loop */
     WN();
@@ -1393,25 +1420,45 @@ void wasm_write_algorithm(algorithm_definition *alg, size_t index) {
     clear_abstract_bind_map();
 }
 
-/* Write a step function for an algorithm — applies one Markov iteration */
-void wasm_write_algorithm_step(algorithm_definition *alg, size_t index) {
+/* Write a step function for an algorithm — applies one Markov iteration.
+ * If bind_override is non-NULL, the exported name is suffixed with "$bindname". */
+void wasm_write_algorithm_step(algorithm_definition *alg, size_t index,
+                               alphabet_bind *bind_override) {
     if (alg == NULL || alg->name == NULL) return;
 
     char buf[512];
     int name_len = (int)(alg->name->end - alg->name->begin);
+    const char *bind_name = NULL;
+    int bind_name_len = 0;
+    if (bind_override != NULL && bind_override->name != NULL) {
+        bind_name = (const char *)bind_override->name->begin;
+        bind_name_len = (int)(bind_override->name->end - bind_override->name->begin);
+    }
 
     WN();
     Wat.indent();
     Wat.str(";; Step function: ");
     Wat.s((const char *)alg->name->begin, name_len);
+    if (bind_name != NULL) {
+        Wat.str(" :: ");
+        Wat.s(bind_name, bind_name_len);
+    }
     WN();
 
     /* Function signature */
     Wat.indent();
     Wat.str("(func $");
     Wat.s((const char *)alg->name->begin, name_len);
+    if (bind_name != NULL) {
+        Wat.str("$");
+        Wat.s(bind_name, bind_name_len);
+    }
     Wat.str("_step (export \"");
     Wat.s((const char *)alg->name->begin, name_len);
+    if (bind_name != NULL) {
+        Wat.str("$");
+        Wat.s(bind_name, bind_name_len);
+    }
     Wat.str("_step\")");
     WN();
 
@@ -1433,7 +1480,7 @@ void wasm_write_algorithm_step(algorithm_definition *alg, size_t index) {
     }
 
     /* Set up abstract bind map if this is an abstract algorithm */
-    setup_abstract_bind_map(alg);
+    setup_abstract_bind_map(alg, bind_override);
 
     /* No outer loop — just one pass through all rules */
     WN();
@@ -1487,14 +1534,99 @@ void wasm_write_algorithm_step(algorithm_definition *alg, size_t index) {
     clear_abstract_bind_map();
 }
 
+/* Find a bind in ctx by its assigned variable name. */
+static alphabet_bind *find_bind_by_name(program_context *ctx,
+                                        lexical_store *name) {
+    if (ctx == NULL || name == NULL) return NULL;
+    size_t name_len = name->end - name->begin;
+    for (size_t i = 0; i < ctx->binds_count; i++) {
+        alphabet_bind *b = ctx->binds[i];
+        if (b->name == NULL) continue;
+        size_t bn_len = b->name->end - b->name->begin;
+        if (bn_len == name_len &&
+            memcmp(b->name->begin, name->begin, name_len) == 0) {
+            return b;
+        }
+    }
+    return NULL;
+}
+
+/* Find an algorithm in ctx by name. */
+static algorithm_definition *find_algorithm_by_name(program_context *ctx,
+                                                    lexical_store *name) {
+    if (ctx == NULL || name == NULL) return NULL;
+    size_t name_len = name->end - name->begin;
+    for (size_t i = 0; i < ctx->algorithms_count; i++) {
+        algorithm_definition *a = ctx->algorithms[i];
+        if (a->name == NULL) continue;
+        size_t an_len = a->name->end - a->name->begin;
+        if (an_len == name_len &&
+            memcmp(a->name->begin, name->begin, name_len) == 0) {
+            return a;
+        }
+    }
+    return NULL;
+}
+
+/* Has a specialized (alg, bind) pair already been emitted in this context? */
+static bool pair_already_emitted(algorithm_call **seen, size_t seen_count,
+                                 lexical_store *alg_name,
+                                 lexical_store *bind_name) {
+    for (size_t i = 0; i < seen_count; i++) {
+        algorithm_call *c = seen[i];
+        if (c->algorithm_name == NULL || c->selected_bind == NULL) continue;
+        size_t an = c->algorithm_name->end - c->algorithm_name->begin;
+        size_t bn = c->selected_bind->end - c->selected_bind->begin;
+        size_t an2 = alg_name->end - alg_name->begin;
+        size_t bn2 = bind_name->end - bind_name->begin;
+        if (an == an2 && bn == bn2 &&
+            memcmp(c->algorithm_name->begin, alg_name->begin, an) == 0 &&
+            memcmp(c->selected_bind->begin, bind_name->begin, bn) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* Recursively write algorithms from a context and all nested contexts */
 void wasm_write_context_algorithms(program_context *ctx) {
     if (ctx == NULL) return;
 
     for (size_t i = 0; i < ctx->algorithms_count; ++i) {
-        wasm_write_algorithm(ctx->algorithms[i], i);
-        wasm_write_algorithm_step(ctx->algorithms[i], i);
+        wasm_write_algorithm(ctx->algorithms[i], i, NULL);
+        wasm_write_algorithm_step(ctx->algorithms[i], i, NULL);
     }
+
+    /* Emit a specialized variant for each unique (algorithm, selected_bind) pair
+     * referenced by calls in this scope. */
+    algorithm_call **seen = NULL;
+    size_t seen_count = 0;
+    size_t seen_cap = 0;
+    for (size_t c = 0; c < ctx->calls_count; c++) {
+        algorithm_call *call = ctx->calls[c];
+        if (call == NULL || call->selected_bind == NULL ||
+            call->algorithm_name == NULL) continue;
+
+        if (pair_already_emitted(seen, seen_count,
+                                 call->algorithm_name, call->selected_bind)) {
+            continue;
+        }
+
+        algorithm_definition *alg =
+            find_algorithm_by_name(ctx, call->algorithm_name);
+        alphabet_bind *bind = find_bind_by_name(ctx, call->selected_bind);
+        if (alg == NULL || bind == NULL) continue;
+
+        wasm_write_algorithm(alg, 0, bind);
+        wasm_write_algorithm_step(alg, 0, bind);
+
+        if (seen_count == seen_cap) {
+            seen_cap = seen_cap ? seen_cap * 2 : 8;
+            seen = realloc(seen, sizeof(algorithm_call *) * seen_cap);
+        }
+        seen[seen_count++] = call;
+    }
+    free(seen);
 
     for (size_t i = 0; i < ctx->content_count; ++i) {
         wasm_write_context_algorithms(ctx->content[i]);
@@ -1559,8 +1691,19 @@ void wasm_write_start_function(void) {
 
         int name_len = (int)(call->algorithm_name->end - call->algorithm_name->begin);
 
-        snprintf(buf, sizeof(buf), ";; Call: %.*s(...)", name_len,
-            call->algorithm_name->begin);
+        /* Build the decorated call name "sort" or "sort$bind1" */
+        char call_fn[256];
+        if (call->selected_bind != NULL) {
+            int bl = (int)(call->selected_bind->end - call->selected_bind->begin);
+            snprintf(call_fn, sizeof(call_fn), "%.*s$%.*s",
+                name_len, call->algorithm_name->begin,
+                bl, call->selected_bind->begin);
+        } else {
+            snprintf(call_fn, sizeof(call_fn), "%.*s",
+                name_len, call->algorithm_name->begin);
+        }
+
+        snprintf(buf, sizeof(buf), ";; Call: %s(...)", call_fn);
         WL(buf);
 
         switch (call->input_type) {
@@ -1590,8 +1733,8 @@ void wasm_write_start_function(void) {
 
             /* Call the algorithm */
             snprintf(buf, sizeof(buf),
-                "(local.set $result_len (call $%.*s (i32.const %d) (local.get $index_count)))",
-                name_len, call->algorithm_name->begin, WORD_BUFFER_BASE);
+                "(local.set $result_len (call $%s (i32.const %d) (local.get $index_count)))",
+                call_fn, WORD_BUFFER_BASE);
             WL(buf);
             break;
         }
@@ -1652,8 +1795,8 @@ void wasm_write_start_function(void) {
                 WL(buf);
                 WL("(local.set $index_count (call $encode_word (local.get $scratch) (local.get $byte_len)))");
                 snprintf(buf, sizeof(buf),
-                    "(local.set $result_len (call $%.*s (i32.const %d) (local.get $index_count)))",
-                    name_len, call->algorithm_name->begin, WORD_BUFFER_BASE);
+                    "(local.set $result_len (call $%s (i32.const %d) (local.get $index_count)))",
+                    call_fn, WORD_BUFFER_BASE);
                 WL(buf);
             } else {
                 WL(";; Warning: could not resolve variable word input");
@@ -1674,8 +1817,8 @@ void wasm_write_start_function(void) {
 
             /* Call the algorithm */
             snprintf(buf, sizeof(buf),
-                "(local.set $result_len (call $%.*s (i32.const %d) (local.get $index_count)))",
-                name_len, call->algorithm_name->begin, WORD_BUFFER_BASE);
+                "(local.set $result_len (call $%s (i32.const %d) (local.get $index_count)))",
+                call_fn, WORD_BUFFER_BASE);
             WL(buf);
             break;
         }
@@ -1720,8 +1863,8 @@ void wasm_write_start_function(void) {
 
             /* Run outer algorithm on the result (already in word buffer as indices) */
             snprintf(buf, sizeof(buf),
-                "(local.set $result_len (call $%.*s (i32.const %d) (local.get $index_count)))",
-                name_len, call->algorithm_name->begin, WORD_BUFFER_BASE);
+                "(local.set $result_len (call $%s (i32.const %d) (local.get $index_count)))",
+                call_fn, WORD_BUFFER_BASE);
             WL(buf);
             break;
         }

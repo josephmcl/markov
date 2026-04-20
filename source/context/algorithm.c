@@ -468,15 +468,21 @@ syntax_store *_update_context_algorithm_call(
 
     /* Extract call info from AST:
        content[0] = algorithm name (ast_variable)
-       content[1] = argument (ast_word_literal, ast_variable, or NULL for stdin) */
+       content[1] = argument (ast_word_literal, ast_variable, or NULL for stdin)
+       content[2] = selected bind name (optional, ast_variable) */
     algorithm_call *call = algorithm_call_push();
     call->store = store;
     call->inner_call = NULL;
+    call->selected_bind = NULL;
 
     if (store->size >= 1 && store->content[0] != NULL) {
         call->algorithm_name = Lex.store(store->content[0]->token_index);
     } else {
         call->algorithm_name = NULL;
+    }
+
+    if (store->size >= 3 && store->content[2] != NULL) {
+        call->selected_bind = Lex.store(store->content[2]->token_index);
     }
 
     if (store->size >= 2 && store->content[1] != NULL) {

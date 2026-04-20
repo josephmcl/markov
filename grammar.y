@@ -1069,6 +1069,62 @@ algorithm_call
         s->content[1] = (syntax_store *) $3; s->content[1]->topic = s;
         $$ = s;
     }
+    | algorithm_name DOUBLE_COLON IDENTIFIER LPAREN STRING_LITERAL RPAREN {
+        /* sort :: b1("□□■") — bind-selecting call with string literal
+           content[0] = algorithm name (ast_variable)
+           content[1] = word literal (ast_word_literal)
+           content[2] = bind name (ast_variable) */
+        syntax_store *s = Syntax.push();
+        syntax_store *name = (syntax_store *) $1;
+        syntax_store *arg = Syntax.push();
+        arg->type = ast_word_literal; arg->token_index = @5.first_column;
+        arg->size = 0; arg->content = NULL;
+        syntax_store *bind = Syntax.push();
+        bind->type = ast_variable; bind->token_index = @3.first_column;
+        bind->size = 0; bind->content = NULL;
+        s->type = ast_algorithm_call;
+        s->token_index = @1.first_column;
+        s->size = 3;
+        s->content = malloc(sizeof(syntax_store *) * 3);
+        s->content[0] = name; name->topic = s;
+        s->content[1] = arg; arg->topic = s;
+        s->content[2] = bind; bind->topic = s;
+        $$ = s;
+    }
+    | algorithm_name DOUBLE_COLON IDENTIFIER LPAREN TILDE RPAREN {
+        /* sort :: b1(~) — bind-selecting call reading stdin
+           content[0] = algorithm name, content[1] = NULL (stdin), content[2] = bind name */
+        syntax_store *s = Syntax.push();
+        syntax_store *name = (syntax_store *) $1;
+        syntax_store *bind = Syntax.push();
+        bind->type = ast_variable; bind->token_index = @3.first_column;
+        bind->size = 0; bind->content = NULL;
+        s->type = ast_algorithm_call;
+        s->token_index = @1.first_column;
+        s->size = 3;
+        s->content = malloc(sizeof(syntax_store *) * 3);
+        s->content[0] = name; name->topic = s;
+        s->content[1] = NULL;
+        s->content[2] = bind; bind->topic = s;
+        $$ = s;
+    }
+    | algorithm_name DOUBLE_COLON IDENTIFIER LPAREN algorithm_call RPAREN {
+        /* sort :: b1(reverse("...")) — bind-selecting call with composed inner
+           content[0] = algorithm name, content[1] = inner call, content[2] = bind name */
+        syntax_store *s = Syntax.push();
+        syntax_store *name = (syntax_store *) $1;
+        syntax_store *bind = Syntax.push();
+        bind->type = ast_variable; bind->token_index = @3.first_column;
+        bind->size = 0; bind->content = NULL;
+        s->type = ast_algorithm_call;
+        s->token_index = @1.first_column;
+        s->size = 3;
+        s->content = malloc(sizeof(syntax_store *) * 3);
+        s->content[0] = name; name->topic = s;
+        s->content[1] = (syntax_store *) $5; s->content[1]->topic = s;
+        s->content[2] = bind; bind->topic = s;
+        $$ = s;
+    }
     ;
 bind_rules_value
     : LCURL bind_rules_list RCURL {
