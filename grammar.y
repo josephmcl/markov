@@ -102,6 +102,7 @@
 %token EXCLAIM
 %token LPAREN
 %token RPAREN
+%token PIPE
 
 %type<yuck> program
 %type<yuck> statements
@@ -144,6 +145,7 @@
 %type<yuck> bind_rules_list
 %type<yuck> bind_rules_value
 %type<yuck> pattern
+%type<yuck> pipe_expression
 %type<yuck> IDENTIFIER
 %type<yuck> STRING_LITERAL
 %type<yuck> NUMBER
@@ -314,6 +316,7 @@ r_expression
     | range_function { $$ = $1; }
     | bind_expression { $$ = $1; }
     | bind_rules_value { $$ = $1; }
+    | pipe_expression { $$ = $1; }
     | variable { $$ = $1; }
     ;
 extends_expression
@@ -990,6 +993,37 @@ pattern
         syntax_store *pat = (syntax_store *) $1;
         pat->size += 1;
         $$ = pat;
+    }
+    ;
+pipe_expression
+    : IDENTIFIER PIPE IDENTIFIER {
+        /* a | b — left-to-right composition: run a first, then b.
+           content is a flat list of ast_variable nodes in source order. */
+        syntax_store *s = Syntax.push();
+        s->type = ast_pipe_expression;
+        s->token_index = @1.first_column;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        syntax_store *l = Syntax.push();
+        l->type = ast_variable; l->token_index = @1.first_column;
+        l->size = 0; l->content = NULL;
+        syntax_store *r = Syntax.push();
+        r->type = ast_variable; r->token_index = @3.first_column;
+        r->size = 0; r->content = NULL;
+        s->content[0] = l; l->topic = s;
+        s->content[1] = r; r->topic = s;
+        $$ = s;
+    }
+    | pipe_expression PIPE IDENTIFIER {
+        /* extend an existing pipeline by appending another stage */
+        syntax_store *s = (syntax_store *) $1;
+        s->size += 1;
+        s->content = realloc(s->content, sizeof(syntax_store *) * s->size);
+        syntax_store *r = Syntax.push();
+        r->type = ast_variable; r->token_index = @3.first_column;
+        r->size = 0; r->content = NULL;
+        s->content[s->size - 1] = r; r->topic = s;
+        $$ = s;
     }
     ;
 algorithm_call

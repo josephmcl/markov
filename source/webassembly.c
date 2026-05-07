@@ -1665,6 +1665,113 @@ static size_t program_call_count(void) {
 #define CALL_SCRATCH_BASE 20480
 #define STDIN_BUFFER_BASE 24576
 
+/* Find an `name = ...` assignment in the AST. Returns the RHS or NULL. */
+static syntax_store *find_assignment_rhs(lexical_store *name) {
+    if (name == NULL) return NULL;
+    size_t name_len = name->end - name->begin;
+    syntax_store *tree = Syntax.tree();
+    for (size_t si = 0; si < Syntax.info->count; si++) {
+        syntax_store *node = &tree[-((int)si)];
+        if (node->type != ast_assignment_statement || node->size < 2) continue;
+        if (node->content[0] == NULL || node->content[1] == NULL) continue;
+        lexical_store *var = Lex.store(node->content[0]->token_index);
+        size_t var_len = var->end - var->begin;
+        if (var_len == name_len &&
+            memcmp(var->begin, name->begin, name_len) == 0) {
+            return node->content[1];
+        }
+    }
+    return NULL;
+}
+
+/* True if `name` is an algorithm registered in the root context. */
+static bool name_is_algorithm(lexical_store *name) {
+    program_context *ctx = context_root();
+    if (ctx == NULL || name == NULL) return false;
+    size_t name_len = name->end - name->begin;
+    for (size_t i = 0; i < ctx->algorithms_count; i++) {
+        algorithm_definition *a = ctx->algorithms[i];
+        if (a->name == NULL) continue;
+        size_t an = a->name->end - a->name->begin;
+        if (an == name_len &&
+            memcmp(a->name->begin, name->begin, name_len) == 0) return true;
+    }
+    return false;
+}
+
+/* Emit the WASM call(s) for `name`, which may resolve to a pipeline.
+ * Caller has already set $index_count to the encoded input length.
+ * Final stage stores into $result_len. */
+static void emit_resolved_call(lexical_store *name,
+                               lexical_store *selected_bind) {
+    char buf[512];
+    if (name == NULL) return;
+
+    int name_len = (int)(name->end - name->begin);
+
+    /* If this is a real algorithm, emit a single direct call. */
+    if (name_is_algorithm(name)) {
+        char fn[256];
+        if (selected_bind != NULL) {
+            int bl = (int)(selected_bind->end - selected_bind->begin);
+            snprintf(fn, sizeof(fn), "%.*s$%.*s",
+                name_len, name->begin, bl, selected_bind->begin);
+        } else {
+            snprintf(fn, sizeof(fn), "%.*s", name_len, name->begin);
+        }
+        snprintf(buf, sizeof(buf),
+            "(local.set $result_len (call $%s (i32.const %d) (local.get $index_count)))",
+            fn, WORD_BUFFER_BASE);
+        WL(buf);
+        return;
+    }
+
+    /* Otherwise look for an assignment binding `name` to a pipeline or
+     * an algorithm-name alias. */
+    syntax_store *rhs = find_assignment_rhs(name);
+    if (rhs == NULL) {
+        snprintf(buf, sizeof(buf),
+            ";; Warning: '%.*s' is not a defined algorithm or composition",
+            name_len, name->begin);
+        WL(buf);
+        return;
+    }
+
+    /* Collect the pipeline stages. */
+    lexical_store *stages[32];
+    size_t stage_count = 0;
+    if (rhs->type == ast_pipe_expression) {
+        for (size_t i = 0; i < rhs->size && stage_count < 32; i++) {
+            if (rhs->content[i] == NULL) continue;
+            stages[stage_count++] = Lex.store(rhs->content[i]->token_index);
+        }
+    } else if (rhs->type == ast_variable) {
+        stages[stage_count++] = Lex.store(rhs->token_index);
+    } else {
+        snprintf(buf, sizeof(buf),
+            ";; Warning: '%.*s' is bound to a non-callable value",
+            name_len, name->begin);
+        WL(buf);
+        return;
+    }
+
+    /* Emit one call per stage, chaining $index_count through. */
+    for (size_t i = 0; i < stage_count; i++) {
+        lexical_store *s = stages[i];
+        int sl = (int)(s->end - s->begin);
+        bool is_last = (i + 1 == stage_count);
+        const char *target_local = is_last ? "result_len" : "index_count";
+        snprintf(buf, sizeof(buf),
+            "(local.set $%s (call $%.*s (i32.const %d) (local.get $index_count)))",
+            target_local, sl, s->begin, WORD_BUFFER_BASE);
+        WL(buf);
+        if (!is_last) {
+            /* Next stage uses the previous stage's output length. The word
+             * buffer is mutated in place so the pointer stays the same. */
+        }
+    }
+}
+
 /* Generate the $_start function that sequences all algorithm calls */
 void wasm_write_start_function(void) {
     program_context *ctx = context_root();
@@ -1748,11 +1855,8 @@ void wasm_write_start_function(void) {
             /* Encode raw bytes -> letter indices */
             WL("(local.set $index_count (call $encode_word (local.get $scratch) (local.get $byte_len)))");
 
-            /* Call the algorithm */
-            snprintf(buf, sizeof(buf),
-                "(local.set $result_len (call $%s (i32.const %d) (local.get $index_count)))",
-                call_fn, WORD_BUFFER_BASE);
-            WL(buf);
+            /* Call the algorithm or composition */
+            emit_resolved_call(call->algorithm_name, call->selected_bind);
             break;
         }
         case CALL_VARIABLE: {
@@ -1811,10 +1915,7 @@ void wasm_write_start_function(void) {
                     "(local.set $byte_len (i32.const %zu))", word_str_len);
                 WL(buf);
                 WL("(local.set $index_count (call $encode_word (local.get $scratch) (local.get $byte_len)))");
-                snprintf(buf, sizeof(buf),
-                    "(local.set $result_len (call $%s (i32.const %d) (local.get $index_count)))",
-                    call_fn, WORD_BUFFER_BASE);
-                WL(buf);
+                emit_resolved_call(call->algorithm_name, call->selected_bind);
             } else {
                 WL(";; Warning: could not resolve variable word input");
             }
@@ -1828,11 +1929,8 @@ void wasm_write_start_function(void) {
                 STDIN_BUFFER_BASE);
             WL(buf);
 
-            /* Call the algorithm */
-            snprintf(buf, sizeof(buf),
-                "(local.set $result_len (call $%s (i32.const %d) (local.get $index_count)))",
-                call_fn, WORD_BUFFER_BASE);
-            WL(buf);
+            /* Call the algorithm or composition */
+            emit_resolved_call(call->algorithm_name, call->selected_bind);
             break;
         }
         case CALL_COMPOSED: {
@@ -1866,17 +1964,15 @@ void wasm_write_start_function(void) {
                 WL(buf);
             }
 
-            /* Run inner algorithm */
+            /* Run inner algorithm — for now CALL_COMPOSED still hard-codes
+             * a single-stage inner; pipelines are only resolved on the outer. */
             snprintf(buf, sizeof(buf),
                 "(local.set $index_count (call $%.*s (i32.const %d) (local.get $index_count)))",
                 inner_name_len, inner->algorithm_name->begin, WORD_BUFFER_BASE);
             WL(buf);
 
-            /* Run outer algorithm on the result (already in word buffer as indices) */
-            snprintf(buf, sizeof(buf),
-                "(local.set $result_len (call $%s (i32.const %d) (local.get $index_count)))",
-                call_fn, WORD_BUFFER_BASE);
-            WL(buf);
+            /* Run outer algorithm or composition on the result */
+            emit_resolved_call(call->algorithm_name, call->selected_bind);
             break;
         }
         }

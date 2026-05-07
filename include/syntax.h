@@ -49,6 +49,7 @@ typedef enum {
     ast_bind_expression,     // [2] :> {□, ■} or [2] :[rules]> {□, ■}
     ast_bind_rule,           // a:□, △:, c.b, !d — individual bind rule
     ast_bind_rules_list,     // list of bind rules
+    ast_pipe_expression,     // a | b | c — left-to-right algorithm composition
 } syntax_store_type;
 
 typedef struct {

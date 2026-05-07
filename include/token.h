@@ -55,6 +55,7 @@ typedef enum {
     TOKEN_COLON            = SINGLE_BYTE_TOKENS + 15, // : [Rule name / emit separator]
     TOKEN_TILDE            = SINGLE_BYTE_TOKENS + 16, // ~ [Stdin input in algorithm calls]
     TOKEN_EXCLAIM          = SINGLE_BYTE_TOKENS + 17, // ! [Error bind rule]
+    TOKEN_PIPE             = SINGLE_BYTE_TOKENS + 18, // | [Left-to-right algorithm composition]
 
     // NOTE: Order must match keyword_tokens array in token.c
     // Longer keywords with shared prefixes must come first (e.g., intersect before in)

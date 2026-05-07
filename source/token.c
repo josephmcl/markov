@@ -202,6 +202,7 @@ lexical_token single_byte_token(uint8_t c) {
     case ':': return TOKEN_COLON;
     case '~': return TOKEN_TILDE;
     case '!': return TOKEN_EXCLAIM;
+    case '|': return TOKEN_PIPE;
     default: return TOKEN_UNKNOWN;
     }
 }

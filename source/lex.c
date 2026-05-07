@@ -374,6 +374,7 @@ int lexer_get_token_bison_compat(size_t index) {
         case TOKEN_APPROX: return APPROX;
         case TOKEN_DOUBLE_TILDE: return DOUBLE_TILDE;
         case TOKEN_EXCLAIM: return EXCLAIM;
+        case TOKEN_PIPE: return PIPE;
         default: {
             printf("stray token, %d\n", token);
             return TOKEN_UNSUPPORTED_BY_PARSER;
