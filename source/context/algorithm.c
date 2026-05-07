@@ -476,7 +476,15 @@ syntax_store *_update_context_algorithm_call(
     call->selected_bind = NULL;
 
     if (store->size >= 1 && store->content[0] != NULL) {
-        call->algorithm_name = Lex.store(store->content[0]->token_index);
+        /* For inline-pipeline targets like (sort | unsort)("..."), content[0]
+           is an ast_pipe_expression rather than a single ast_variable name.
+           Leave algorithm_name NULL — codegen reads the pipe directly off
+           the AST in that case. */
+        if (store->content[0]->type == ast_pipe_expression) {
+            call->algorithm_name = NULL;
+        } else {
+            call->algorithm_name = Lex.store(store->content[0]->token_index);
+        }
     } else {
         call->algorithm_name = NULL;
     }

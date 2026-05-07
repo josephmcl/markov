@@ -192,6 +192,7 @@ void _print_node_string(syntax_store_type type) {
     case ast_bind_rules_list:                printf("Bind Rules"); return;
     case ast_rule_name:                      printf("Rule Name"); return;
     case ast_emit_expression:                printf("Emit Expression"); return;
+    case ast_pipe_expression:                printf("Pipe"); return;
     default:                                printf("UNKNOWN"); return;
     }
 }

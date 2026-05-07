@@ -1159,6 +1159,58 @@ algorithm_call
         s->content[2] = bind; bind->topic = s;
         $$ = s;
     }
+    | LPAREN pipe_expression RPAREN LPAREN STRING_LITERAL RPAREN {
+        /* (sort | unsort)("...") — anonymous pipeline applied to a literal.
+           content[0] = pipe_expression, content[1] = word literal */
+        syntax_store *s = Syntax.push();
+        syntax_store *arg = Syntax.push();
+        arg->type = ast_word_literal; arg->token_index = @5.first_column;
+        arg->size = 0; arg->content = NULL;
+        s->type = ast_algorithm_call;
+        s->token_index = @1.first_column;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = (syntax_store *) $2; s->content[0]->topic = s;
+        s->content[1] = arg; arg->topic = s;
+        $$ = s;
+    }
+    | LPAREN pipe_expression RPAREN LPAREN IDENTIFIER RPAREN {
+        /* (sort | unsort)(w) — anonymous pipeline applied to a word variable. */
+        syntax_store *s = Syntax.push();
+        syntax_store *arg = Syntax.push();
+        arg->type = ast_variable; arg->token_index = @5.first_column;
+        arg->size = 0; arg->content = NULL;
+        s->type = ast_algorithm_call;
+        s->token_index = @1.first_column;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = (syntax_store *) $2; s->content[0]->topic = s;
+        s->content[1] = arg; arg->topic = s;
+        $$ = s;
+    }
+    | LPAREN pipe_expression RPAREN LPAREN TILDE RPAREN {
+        /* (sort | unsort)(~) — anonymous pipeline reading stdin. */
+        syntax_store *s = Syntax.push();
+        s->type = ast_algorithm_call;
+        s->token_index = @1.first_column;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = (syntax_store *) $2; s->content[0]->topic = s;
+        s->content[1] = NULL;
+        $$ = s;
+    }
+    | LPAREN pipe_expression RPAREN LPAREN algorithm_call RPAREN {
+        /* (sort | unsort)(reverse("...")) — anonymous pipeline applied to
+           the result of another call. */
+        syntax_store *s = Syntax.push();
+        s->type = ast_algorithm_call;
+        s->token_index = @1.first_column;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = (syntax_store *) $2; s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $5; s->content[1]->topic = s;
+        $$ = s;
+    }
     ;
 bind_rules_value
     : LCURL bind_rules_list RCURL {

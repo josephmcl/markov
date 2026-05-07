@@ -1495,11 +1495,30 @@ void validate_program_context (void) {
         printf("| calls (%lu)\n", TheContext[i].calls_count);
         for (size_t j = 0; j < TheContext[i].calls_count; ++j) {
             algorithm_call *call = TheContext[i].calls[j];
-            int name_size = (int)(call->algorithm_name->end - call->algorithm_name->begin);
-            printf("| | %.*s", name_size, call->algorithm_name->begin);
-            if (call->selected_bind != NULL) {
-                int b_size = (int)(call->selected_bind->end - call->selected_bind->begin);
-                printf(" :: %.*s", b_size, call->selected_bind->begin);
+            printf("| | ");
+            if (call->algorithm_name != NULL) {
+                int name_size = (int)(call->algorithm_name->end - call->algorithm_name->begin);
+                printf("%.*s", name_size, call->algorithm_name->begin);
+                if (call->selected_bind != NULL) {
+                    int b_size = (int)(call->selected_bind->end - call->selected_bind->begin);
+                    printf(" :: %.*s", b_size, call->selected_bind->begin);
+                }
+            } else if (call->store != NULL && call->store->size >= 1 &&
+                       call->store->content[0] != NULL &&
+                       call->store->content[0]->type == ast_pipe_expression) {
+                /* Inline pipeline: print the chain of stage names */
+                syntax_store *pipe = call->store->content[0];
+                printf("(");
+                for (size_t k = 0; k < pipe->size; k++) {
+                    if (k > 0) printf(" | ");
+                    if (pipe->content[k] != NULL) {
+                        lexical_store *t = Lex.store(pipe->content[k]->token_index);
+                        printf("%.*s", (int)(t->end - t->begin), t->begin);
+                    }
+                }
+                printf(")");
+            } else {
+                printf("<unknown>");
             }
             printf("(");
             if (call->input_type == CALL_STDIN) {
