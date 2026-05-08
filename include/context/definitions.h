@@ -88,12 +88,13 @@ typedef struct {
     size_t                  capacity;
 } algorithm_definition_info;
 
-/* Algorithm call: swap("□□■"), swap(w), swap(~), sort(reverse("...")) */
+/* Algorithm call: swap("□□■"), swap(w), swap(~), sort(reverse("...")), sort(@ 0..4) */
 typedef enum {
     CALL_LITERAL,   /* string literal argument */
     CALL_VARIABLE,  /* word variable reference */
     CALL_STDIN,     /* ~ (read from stdin) */
-    CALL_COMPOSED   /* nested algorithm call */
+    CALL_COMPOSED,  /* nested algorithm call */
+    CALL_OBSERVE    /* @ range — exhaustive observation over word range */
 } algorithm_call_type;
 
 typedef struct acall algorithm_call;

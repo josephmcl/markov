@@ -222,11 +222,42 @@ void syntax_print(void) {
 }
 
 void syntax_free(void) {
-    for (size_t i = 0; i < TheInfo.capacity; ++i) {
-        if (TheTree[i].size > 0)
-            free(TheTree[i].content);
+    /* Pushed nodes live at TheTree[1..count]. Anything past count (or at
+       index 0) is uninitialised — realloc does not zero new memory — so
+       its size/content fields are garbage and must not be freed.
+       We also check for aliased content pointers (two nodes whose
+       content[] arrays were left pointing at the same allocation by a
+       grammar action that re-used a pointer). Skip duplicates to avoid
+       a double-free. */
+    /* Collect unique content pointers first so the alias check sees the
+       original values rather than entries we've already nulled. */
+    void **seen = NULL;
+    size_t seen_count = 0;
+    size_t seen_cap = 0;
+    for (size_t i = 1; i <= TheInfo.count; ++i) {
+        if (TheTree[i].size == 0 || TheTree[i].content == NULL) continue;
+        bool dup = false;
+        for (size_t k = 0; k < seen_count; ++k) {
+            if (seen[k] == (void *)TheTree[i].content) { dup = true; break; }
+        }
+        if (dup) continue;
+        if (seen_count == seen_cap) {
+            seen_cap = seen_cap ? seen_cap * 2 : 32;
+            seen = (void **)realloc(seen, sizeof(void *) * seen_cap);
+        }
+        seen[seen_count++] = (void *)TheTree[i].content;
+    }
+    for (size_t k = 0; k < seen_count; ++k) {
+        free(seen[k]);
+    }
+    free(seen);
+    for (size_t i = 1; i <= TheInfo.count; ++i) {
+        TheTree[i].content = NULL;
     }
     free(TheTree);
+    TheTree = NULL;
+    TheInfo.count = 0;
+    TheInfo.capacity = 0;
 }
 
 syntax_store *get_tree(void) {

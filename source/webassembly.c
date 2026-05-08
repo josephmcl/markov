@@ -647,6 +647,73 @@ static void wasm_write_decode_word(void) {
     WL(")"); /* end func */
 }
 
+/* Append decimal ASCII representation of $value at $out_ptr.
+ * Returns updated out_ptr. Used by the observation harness for step counts. */
+static void wasm_write_emit_decimal(void) {
+    WN();
+    WL(";; Append decimal ASCII representation of $value at $out_ptr");
+    WL(";; Returns the new write position");
+    WL("(func $emit_decimal (param $value i32) (param $out_ptr i32) (result i32)");
+    WI();
+    WL("(local $digits i32)");
+    WL("(local $tmp i32)");
+    WL("(local $divisor i32)");
+
+    WN();
+    WL(";; Special case zero");
+    WL("(if (i32.eqz (local.get $value))");
+    WI();
+    WL("(then");
+    WI();
+    WL("(i32.store8 (local.get $out_ptr) (i32.const 48))");
+    WL("(return (i32.add (local.get $out_ptr) (i32.const 1)))");
+    WD();
+    WL(")");
+    WD();
+    WL(")");
+
+    WN();
+    WL(";; Find largest power-of-10 divisor <= value");
+    WL("(local.set $divisor (i32.const 1))");
+    WL("(local.set $tmp (local.get $value))");
+    WL("(block $div_done");
+    WI();
+    WL("(loop $div_loop");
+    WI();
+    WL("(local.set $tmp (i32.div_u (local.get $tmp) (i32.const 10)))");
+    WL("(br_if $div_done (i32.eqz (local.get $tmp)))");
+    WL("(local.set $divisor (i32.mul (local.get $divisor) (i32.const 10)))");
+    WL("(br $div_loop)");
+    WD();
+    WL(")");
+    WD();
+    WL(")");
+
+    WN();
+    WL(";; Emit each digit from most significant to least");
+    WL("(block $emit_done");
+    WI();
+    WL("(loop $emit_loop");
+    WI();
+    WL("(br_if $emit_done (i32.eqz (local.get $divisor)))");
+    WL("(i32.store8 (local.get $out_ptr)");
+    WI();
+    WL("(i32.add (i32.const 48) (i32.rem_u (i32.div_u (local.get $value) (local.get $divisor)) (i32.const 10))))");
+    WD();
+    WL("(local.set $out_ptr (i32.add (local.get $out_ptr) (i32.const 1)))");
+    WL("(local.set $divisor (i32.div_u (local.get $divisor) (i32.const 10)))");
+    WL("(br $emit_loop)");
+    WD();
+    WL(")");
+    WD();
+    WL(")");
+
+    WN();
+    WL("(local.get $out_ptr)");
+    WD();
+    WL(")");
+}
+
 void wasm_write_helper_functions(void) {
     WN();
     WL(";; ========================================");
@@ -656,6 +723,7 @@ void wasm_write_helper_functions(void) {
     wasm_write_memmove();
     wasm_write_encode_word();
     wasm_write_decode_word();
+    wasm_write_emit_decimal();
 }
 
 /* ========================================================================
@@ -1664,6 +1732,8 @@ static size_t program_call_count(void) {
 
 #define CALL_SCRATCH_BASE 20480
 #define STDIN_BUFFER_BASE 24576
+#define OBS_INPUT_BUFFER  28672  /* saved input letters for the current trace */
+#define OBS_LINE_BUFFER   32768  /* assembly area for the trace text line */
 
 /* Find an `name = ...` assignment in the AST. Returns the RHS or NULL. */
 static syntax_store *find_assignment_rhs(lexical_store *name) {
@@ -1800,6 +1870,334 @@ static void emit_resolved_call(lexical_store *name,
     }
 }
 
+/* Parse a NUMBER token's bytes into an int. */
+static int parse_number_token_bytes(lexical_store *tok) {
+    int n = 0;
+    if (tok == NULL) return 0;
+    for (const uint8_t *p = tok->begin; p < tok->end; p++) {
+        if (*p < '0' || *p > '9') break;
+        n = n * 10 + (*p - '0');
+    }
+    return n;
+}
+
+/* Emit the observation harness: enumerate every word of every length in
+ * [lo, hi] over the algorithm's alphabet, run the algorithm step-by-step
+ * on each, and emit one trace line per word in the .obs format:
+ *   trace "INPUT" STATUS STEPS "OUTPUT"
+ *
+ * Header format:
+ *   observation NAME range LO..HI alphabet_size N
+ *
+ * Status values: terminated | no_match | timeout. */
+static void emit_observation_harness(algorithm_call *call) {
+    char buf[1024];
+
+    if (call->store == NULL || call->store->size < 2 ||
+        call->store->content[1] == NULL) return;
+
+    syntax_store *range = call->store->content[1];
+    int lo = 0, hi = 0;
+    if (range->type == ast_range_literal &&
+        range->size >= 2 && range->content[0] && range->content[1]) {
+        lo = parse_number_token_bytes(Lex.store(range->content[0]->token_index));
+        hi = parse_number_token_bytes(Lex.store(range->content[1]->token_index));
+    } else {
+        WL(";; Warning: @ requires a literal range (e.g. 0..4)");
+        return;
+    }
+    if (hi < lo) return;
+
+    /* Resolve algorithm: only named (non-inline-pipe) calls handled here. */
+    if (call->algorithm_name == NULL) {
+        WL(";; Warning: @ on inline pipelines not yet supported");
+        return;
+    }
+
+    program_context *ctx = context_root();
+    algorithm_definition *alg = NULL;
+    if (ctx) {
+        size_t name_len = call->algorithm_name->end - call->algorithm_name->begin;
+        for (size_t i = 0; i < ctx->algorithms_count; i++) {
+            algorithm_definition *a = ctx->algorithms[i];
+            if (a == NULL || a->name == NULL) continue;
+            size_t an = a->name->end - a->name->begin;
+            if (an == name_len &&
+                memcmp(a->name->begin, call->algorithm_name->begin, name_len) == 0) {
+                alg = a; break;
+            }
+        }
+    }
+    if (alg == NULL) {
+        WL(";; Warning: @ target is not a known algorithm");
+        return;
+    }
+
+    int alphabet_size = (alg->abstract_alph != NULL)
+        ? (int)alg->abstract_alph->size
+        : (int)GlobalLetters.count;
+    if (alphabet_size <= 0) alphabet_size = (int)GlobalLetters.count;
+
+    int name_len = (int)(call->algorithm_name->end - call->algorithm_name->begin);
+
+    /* ---- Emit header line via $emit ---- */
+    snprintf(buf, sizeof(buf),
+        ";; Observation harness: %.*s @ %d..%d (alphabet=%d)",
+        name_len, call->algorithm_name->begin, lo, hi, alphabet_size);
+    WL(buf);
+
+    /* Build header in OBS_LINE_BUFFER and emit. Format:
+       "observation NAME range LO..HI alphabet_size N\n" */
+    {
+        char header[256];
+        int hlen = snprintf(header, sizeof(header),
+            "observation %.*s range %d..%d alphabet_size %d\n",
+            name_len, call->algorithm_name->begin, lo, hi, alphabet_size);
+        snprintf(buf, sizeof(buf),
+            "(local.set $obs_ptr (i32.const %d))", OBS_LINE_BUFFER);
+        WL(buf);
+        for (int i = 0; i < hlen; i++) {
+            snprintf(buf, sizeof(buf),
+                "(i32.store8 (i32.add (local.get $obs_ptr) (i32.const %d)) (i32.const %d))",
+                i, (uint8_t)header[i]);
+            WL(buf);
+        }
+        snprintf(buf, sizeof(buf),
+            "(call $obs_emit (i32.const %d) (i32.const %d))",
+            OBS_LINE_BUFFER, hlen);
+        WL(buf);
+    }
+
+    /* ---- Outer length loop ---- */
+    snprintf(buf, sizeof(buf), "(local.set $obs_len (i32.const %d))", lo);
+    WL(buf);
+    WL("(block $obs_outer_done");
+    WI();
+    WL("(loop $obs_length_loop");
+    WI();
+    snprintf(buf, sizeof(buf),
+        "(br_if $obs_outer_done (i32.gt_s (local.get $obs_len) (i32.const %d)))",
+        hi);
+    WL(buf);
+
+    /* word_count = alphabet_size ^ obs_len */
+    WL(";; word_count = alphabet_size ^ obs_len");
+    WL("(local.set $obs_word_count (i32.const 1))");
+    WL("(local.set $obs_pos (i32.const 0))");
+    WL("(block $obs_pow_done");
+    WI();
+    WL("(loop $obs_pow_loop");
+    WI();
+    WL("(br_if $obs_pow_done (i32.ge_s (local.get $obs_pos) (local.get $obs_len)))");
+    snprintf(buf, sizeof(buf),
+        "(local.set $obs_word_count (i32.mul (local.get $obs_word_count) (i32.const %d)))",
+        alphabet_size);
+    WL(buf);
+    WL("(local.set $obs_pos (i32.add (local.get $obs_pos) (i32.const 1)))");
+    WL("(br $obs_pow_loop)");
+    WD(); WL(")");
+    WD(); WL(")");
+
+    /* Per-length: iterate each word index */
+    WL("(local.set $obs_idx (i32.const 0))");
+    WL("(block $obs_words_done");
+    WI();
+    WL("(loop $obs_word_loop");
+    WI();
+    WL("(br_if $obs_words_done (i32.ge_s (local.get $obs_idx) (local.get $obs_word_count)))");
+
+    /* Decode obs_idx into letter indices at OBS_INPUT_BUFFER (length obs_len, LSB-first) */
+    WL(";; Decode word index -> letter indices at OBS_INPUT_BUFFER");
+    WL("(local.set $obs_tmp (local.get $obs_idx))");
+    WL("(local.set $obs_pos (i32.const 0))");
+    WL("(block $obs_decode_done");
+    WI();
+    WL("(loop $obs_decode_loop");
+    WI();
+    WL("(br_if $obs_decode_done (i32.ge_s (local.get $obs_pos) (local.get $obs_len)))");
+    snprintf(buf, sizeof(buf),
+        "(i32.store8 (i32.add (i32.const %d) (local.get $obs_pos))"
+        " (i32.rem_u (local.get $obs_tmp) (i32.const %d)))",
+        OBS_INPUT_BUFFER, alphabet_size);
+    WL(buf);
+    snprintf(buf, sizeof(buf),
+        "(local.set $obs_tmp (i32.div_u (local.get $obs_tmp) (i32.const %d)))",
+        alphabet_size);
+    WL(buf);
+    WL("(local.set $obs_pos (i32.add (local.get $obs_pos) (i32.const 1)))");
+    WL("(br $obs_decode_loop)");
+    WD(); WL(")");
+    WD(); WL(")");
+
+    /* Copy OBS_INPUT_BUFFER -> WORD_BUFFER_BASE (the algorithm mutates this) */
+    snprintf(buf, sizeof(buf),
+        "(call $memmove (i32.const %d) (i32.const %d) (local.get $obs_len))",
+        WORD_BUFFER_BASE, OBS_INPUT_BUFFER);
+    WL(buf);
+
+    /* Run the step function in a loop, tracking $obs_steps and $obs_status */
+    WL(";; Drive sort_step until terminated/no_match/timeout");
+    WL("(local.set $obs_steps (i32.const 0))");
+    WL("(local.set $obs_word_len (local.get $obs_len))");
+    WL("(local.set $obs_status (i32.const 2))");  /* default no_match */
+    WL("(block $obs_trace_done");
+    WI();
+    WL("(loop $obs_trace_step");
+    WI();
+    WL("(if (i32.ge_s (local.get $obs_steps) (i32.const 10000))");
+    WI();
+    WL("(then");
+    WI();
+    WL("(local.set $obs_status (i32.const 3))");  /* 3 = timeout */
+    WL("(br $obs_trace_done)");
+    WD(); WL(")");
+    WD(); WL(")");
+    snprintf(buf, sizeof(buf),
+        "(local.set $obs_word_len (call $%.*s_step (i32.const %d) (local.get $obs_word_len)))",
+        name_len, call->algorithm_name->begin, WORD_BUFFER_BASE);
+    WL(buf);
+    WL("(local.set $obs_status (global.get $step_status))");
+    WL("(br_if $obs_trace_done (i32.ne (local.get $obs_status) (i32.const 0)))");
+    WL("(local.set $obs_steps (i32.add (local.get $obs_steps) (i32.const 1)))");
+    WL("(br $obs_trace_step)");
+    WD(); WL(")");
+    WD(); WL(")");
+
+    /* If we made any steps, count the step-after-final too. The loop above
+       increments $obs_steps only when status==0 (matched); on terminated
+       the terminal rule itself counts as a step, so add 1. */
+    WL("(if (i32.eq (local.get $obs_status) (i32.const 1))");
+    WI();
+    WL("(then (local.set $obs_steps (i32.add (local.get $obs_steps) (i32.const 1))))");
+    WD(); WL(")");
+
+    /* ---- Build trace line in OBS_LINE_BUFFER ---- */
+    snprintf(buf, sizeof(buf),
+        "(local.set $obs_ptr (i32.const %d))", OBS_LINE_BUFFER);
+    WL(buf);
+
+    /* "trace \"" */
+    {
+        const char *prefix = "trace \"";
+        for (size_t i = 0; prefix[i]; i++) {
+            snprintf(buf, sizeof(buf),
+                "(i32.store8 (local.get $obs_ptr) (i32.const %d))"
+                " (local.set $obs_ptr (i32.add (local.get $obs_ptr) (i32.const 1)))",
+                (uint8_t)prefix[i]);
+            WL(buf);
+        }
+    }
+
+    /* Decode OBS_INPUT_BUFFER (saved input) into the line */
+    snprintf(buf, sizeof(buf),
+        "(local.set $obs_ptr (i32.add (local.get $obs_ptr) (call $decode_word"
+        " (i32.const %d) (local.get $obs_len) (local.get $obs_ptr))))",
+        OBS_INPUT_BUFFER);
+    WL(buf);
+
+    /* "\" " then status string then " " */
+    {
+        const char *q = "\" ";
+        for (size_t i = 0; q[i]; i++) {
+            snprintf(buf, sizeof(buf),
+                "(i32.store8 (local.get $obs_ptr) (i32.const %d))"
+                " (local.set $obs_ptr (i32.add (local.get $obs_ptr) (i32.const 1)))",
+                (uint8_t)q[i]);
+            WL(buf);
+        }
+    }
+
+    /* status: 1 = terminated, 2 = no_match, 3 = timeout */
+    WL("(if (i32.eq (local.get $obs_status) (i32.const 1))");
+    WI();
+    WL("(then");
+    WI();
+    {
+        const char *s = "terminated";
+        for (size_t i = 0; s[i]; i++) {
+            snprintf(buf, sizeof(buf),
+                "(i32.store8 (local.get $obs_ptr) (i32.const %d))"
+                " (local.set $obs_ptr (i32.add (local.get $obs_ptr) (i32.const 1)))",
+                (uint8_t)s[i]);
+            WL(buf);
+        }
+    }
+    WD(); WL(")");
+    WL("(else (if (i32.eq (local.get $obs_status) (i32.const 3))");
+    WI();
+    WL("(then");
+    WI();
+    {
+        const char *s = "timeout";
+        for (size_t i = 0; s[i]; i++) {
+            snprintf(buf, sizeof(buf),
+                "(i32.store8 (local.get $obs_ptr) (i32.const %d))"
+                " (local.set $obs_ptr (i32.add (local.get $obs_ptr) (i32.const 1)))",
+                (uint8_t)s[i]);
+            WL(buf);
+        }
+    }
+    WD(); WL(")");
+    WL("(else");
+    WI();
+    {
+        const char *s = "no_match";
+        for (size_t i = 0; s[i]; i++) {
+            snprintf(buf, sizeof(buf),
+                "(i32.store8 (local.get $obs_ptr) (i32.const %d))"
+                " (local.set $obs_ptr (i32.add (local.get $obs_ptr) (i32.const 1)))",
+                (uint8_t)s[i]);
+            WL(buf);
+        }
+    }
+    WD(); WL(")");
+    WD(); WL("))");
+    WD(); WL(")");
+
+    /* " " */
+    WL("(i32.store8 (local.get $obs_ptr) (i32.const 32))");
+    WL("(local.set $obs_ptr (i32.add (local.get $obs_ptr) (i32.const 1)))");
+
+    /* Decimal step count */
+    WL("(local.set $obs_ptr (call $emit_decimal (local.get $obs_steps) (local.get $obs_ptr)))");
+
+    /* " \"" */
+    WL("(i32.store8 (local.get $obs_ptr) (i32.const 32))");
+    WL("(local.set $obs_ptr (i32.add (local.get $obs_ptr) (i32.const 1)))");
+    WL("(i32.store8 (local.get $obs_ptr) (i32.const 34))");
+    WL("(local.set $obs_ptr (i32.add (local.get $obs_ptr) (i32.const 1)))");
+
+    /* Decode WORD_BUFFER (current word, post-execution) into the line */
+    snprintf(buf, sizeof(buf),
+        "(local.set $obs_ptr (i32.add (local.get $obs_ptr) (call $decode_word"
+        " (i32.const %d) (local.get $obs_word_len) (local.get $obs_ptr))))",
+        WORD_BUFFER_BASE);
+    WL(buf);
+
+    /* "\"\n" */
+    WL("(i32.store8 (local.get $obs_ptr) (i32.const 34))");
+    WL("(local.set $obs_ptr (i32.add (local.get $obs_ptr) (i32.const 1)))");
+    WL("(i32.store8 (local.get $obs_ptr) (i32.const 10))");
+    WL("(local.set $obs_ptr (i32.add (local.get $obs_ptr) (i32.const 1)))");
+
+    /* emit the trace line via $obs_emit so it can be routed separately
+     * from the algorithm's own emit chatter */
+    snprintf(buf, sizeof(buf),
+        "(call $obs_emit (i32.const %d) (i32.sub (local.get $obs_ptr) (i32.const %d)))",
+        OBS_LINE_BUFFER, OBS_LINE_BUFFER);
+    WL(buf);
+
+    WL("(local.set $obs_idx (i32.add (local.get $obs_idx) (i32.const 1)))");
+    WL("(br $obs_word_loop)");
+    WD(); WL(")");
+    WD(); WL(")");
+
+    WL("(local.set $obs_len (i32.add (local.get $obs_len) (i32.const 1)))");
+    WL("(br $obs_length_loop)");
+    WD(); WL(")");
+    WD(); WL(")");
+}
+
 /* Dispatch helper: if the call's target is an inline pipe expression,
  * emit the pipe stages; otherwise look up the named target. */
 static void emit_call_for(algorithm_call *call) {
@@ -1827,6 +2225,12 @@ void wasm_write_start_function(void) {
 
     bool has_stdin = program_has_stdin_calls();
 
+    /* Detect any observation calls so we declare the locals only when needed. */
+    bool has_observe = false;
+    for (size_t c = 0; c < ctx->calls_count; c++) {
+        if (ctx->calls[c]->input_type == CALL_OBSERVE) { has_observe = true; break; }
+    }
+
     WN();
     WL("(func $_start (export \"_start\")");
     WI();
@@ -1836,6 +2240,17 @@ void wasm_write_start_function(void) {
     WL("(local $result_len i32)");
     if (has_stdin) {
         WL("(local $stdin_len i32)");
+    }
+    if (has_observe) {
+        WL("(local $obs_len i32)");
+        WL("(local $obs_idx i32)");
+        WL("(local $obs_word_count i32)");
+        WL("(local $obs_pos i32)");
+        WL("(local $obs_tmp i32)");
+        WL("(local $obs_steps i32)");
+        WL("(local $obs_status i32)");
+        WL("(local $obs_word_len i32)");
+        WL("(local $obs_ptr i32)");
     }
     WN();
 
@@ -2021,6 +2436,10 @@ void wasm_write_start_function(void) {
             emit_call_for(call);
             break;
         }
+        case CALL_OBSERVE: {
+            emit_observation_harness(call);
+            break;
+        }
         }
 
         WN();
@@ -2108,8 +2527,20 @@ void wm_generate_s_statements(struct data *Data) {
     /* Host imports */
     bool has_stdin = program_has_stdin_calls();
     bool has_calls = program_call_count() > 0;
+    bool has_observe = false;
+    {
+        program_context *root = context_root();
+        if (root) {
+            for (size_t i = 0; i < root->calls_count; i++) {
+                if (root->calls[i]->input_type == CALL_OBSERVE) {
+                    has_observe = true;
+                    break;
+                }
+            }
+        }
+    }
 
-    if (has_emit || has_stdin || has_calls) {
+    if (has_emit || has_stdin || has_calls || has_observe) {
         WN();
         WL(";; Host imports");
     }
@@ -2118,6 +2549,9 @@ void wm_generate_s_statements(struct data *Data) {
     }
     if (has_stdin) {
         WL("(import \"env\" \"read\" (func $read (param i32 i32) (result i32)))");
+    }
+    if (has_observe) {
+        WL("(import \"env\" \"obs_emit\" (func $obs_emit (param i32 i32)))");
     }
 
     /* Memory declaration */

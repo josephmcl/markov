@@ -1523,6 +1523,8 @@ void validate_program_context (void) {
             printf("(");
             if (call->input_type == CALL_STDIN) {
                 printf("~");
+            } else if (call->input_type == CALL_OBSERVE) {
+                printf("@ <range>");
             } else if (call->input_token != NULL) {
                 int tok_size = (int)(call->input_token->end - call->input_token->begin);
                 printf("%.*s", tok_size, call->input_token->begin);

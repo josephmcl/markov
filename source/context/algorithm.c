@@ -495,7 +495,12 @@ syntax_store *_update_context_algorithm_call(
 
     if (store->size >= 2 && store->content[1] != NULL) {
         syntax_store *arg = store->content[1];
-        if (arg->type == ast_algorithm_call) {
+        if (arg->type == ast_range_literal || arg->type == ast_range_function) {
+            /* sort(@ 0..4) — observation over a range of word lengths.
+               input_token unused; codegen reads the range AST off the call store. */
+            call->input_type = CALL_OBSERVE;
+            call->input_token = NULL;
+        } else if (arg->type == ast_algorithm_call) {
             /* Composed call: sort(reverse("...")) */
             call->input_type = CALL_COMPOSED;
             call->input_token = NULL;

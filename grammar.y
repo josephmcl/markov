@@ -132,6 +132,7 @@
 %type<yuck> abstract_alphabet
 %type<yuck> range_literal
 %type<yuck> range_function
+%type<yuck> range_expression
 %type<yuck> abstract_named
 %type<yuck> abstract_name_list
 %type<yuck> algorithm
@@ -536,6 +537,10 @@ range_literal
         s->content[1] = end; end->topic = s;
         $$ = s;
     }
+    ;
+range_expression
+    : range_literal { $$ = $1; }
+    | range_function { $$ = $1; }
     ;
 range_function
     : IDENTIFIER LPAREN NUMBER COMMA NUMBER COMMA NUMBER RPAREN {
@@ -1069,6 +1074,23 @@ algorithm_call
         s->content[1] = arg; arg->topic = s;
         $$ = s;
     }
+    | IDENTIFIER LPAREN ATSIGN range_expression RPAREN {
+        /* sort(@ 0..4) — observation: run on every word in range
+           content[0] = algorithm name (ast_variable)
+           content[1] = range_expression (ast_range_literal or ast_range_function) */
+        syntax_store *s = Syntax.push();
+        syntax_store *name = Syntax.push();
+        name->type = ast_variable;
+        name->token_index = @1.first_column;
+        name->size = 0; name->content = NULL;
+        s->type = ast_algorithm_call;
+        s->token_index = @1.first_column;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = name; name->topic = s;
+        s->content[1] = (syntax_store *) $4; s->content[1]->topic = s;
+        $$ = s;
+    }
     | IDENTIFIER LPAREN TILDE RPAREN {
         /* swap(~) — stdin input
            content[0] = algorithm name (ast_variable)
@@ -1197,6 +1219,17 @@ algorithm_call
         s->content = malloc(sizeof(syntax_store *) * 2);
         s->content[0] = (syntax_store *) $2; s->content[0]->topic = s;
         s->content[1] = NULL;
+        $$ = s;
+    }
+    | LPAREN pipe_expression RPAREN LPAREN ATSIGN range_expression RPAREN {
+        /* (sort | unsort)(@ 0..4) — anonymous pipeline observed on a range. */
+        syntax_store *s = Syntax.push();
+        s->type = ast_algorithm_call;
+        s->token_index = @1.first_column;
+        s->size = 2;
+        s->content = malloc(sizeof(syntax_store *) * 2);
+        s->content[0] = (syntax_store *) $2; s->content[0]->topic = s;
+        s->content[1] = (syntax_store *) $6; s->content[1]->topic = s;
         $$ = s;
     }
     | LPAREN pipe_expression RPAREN LPAREN algorithm_call RPAREN {
