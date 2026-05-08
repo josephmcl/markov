@@ -57,6 +57,9 @@ int main(int argc, char **argv) {
                     printf("Encoded algorithm '%.*s':\n",
                         nlen, alg->name->begin);
                     markov_print_algorithm(&rec);
+                    markov_canonicalize_letters(&rec);
+                    printf("Canonicalised:\n");
+                    markov_print_algorithm(&rec);
                 } else {
                     int nlen = (int)(alg->name->end - alg->name->begin);
                     printf("Failed to encode algorithm '%.*s'\n",

@@ -3,9 +3,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "context/definitions.h"
-#include "lex.h"
-#include "syntax.h"
+/* This file is intentionally pure: no dependencies on the language
+ * compiler's lexer/parser/context. The encoder bridge that converts an
+ * in-memory algorithm_definition into a MarkovAlgorithm record lives in
+ * source/markov_encode.c so that downstream tools (the offline enumerator,
+ * future GPU harnesses) can link against the record helpers without
+ * pulling in the language-front-end. */
 
 uint8_t markov_bits_per_letter(uint8_t abstract_size) {
     if (abstract_size <= 1) return 1;
@@ -146,109 +149,156 @@ bool markov_binding_valid(const MarkovBinding *b, const MarkovAlgorithm *a) {
 /* Encoding from algorithm_definition                                      */
 /* ---------------------------------------------------------------------- */
 
-/* Decompose a pattern AST node into a flat list of abstract letter indices,
- * by walking its IDENTIFIER tokens and greedy-matching against the
- * algorithm's abstract alphabet names.
- *
- * Returns the letter count on success, or -1 on failure (unrecognised
- * letter, or output overflow). */
-static int encode_pattern_letters(const syntax_store *pattern,
-                                  const abstract_alphabet *abs,
-                                  uint8_t *out, int max_out) {
-    if (pattern == NULL || abs == NULL || out == NULL) return -1;
+/* ---------------------------------------------------------------------- */
+/* Printing                                                                */
+/* ---------------------------------------------------------------------- */
 
-    int total = 0;
-    size_t tok_idx = pattern->token_index;
-    size_t tokens_needed = pattern->size + 1;
-    size_t tokens_found = 0;
+/* ---------------------------------------------------------------------- */
+/* Canonicalisation                                                        */
+/* ---------------------------------------------------------------------- */
 
-    while (tokens_found < tokens_needed) {
-        lexical_store *tok = Lex.store(tok_idx);
-        if (tok == NULL) return -1;
-        if (tok->token == TOKEN_IDENTIFIER) {
-            /* The token bytes might be a multi-letter concatenation like
-             * "ba" — decompose against abs->names with greedy longest match. */
-            size_t pos = 0;
-            size_t bytes_len = tok->end - tok->begin;
-            while (pos < bytes_len) {
-                int best_idx = -1;
-                size_t best_len = 0;
-                for (size_t ai = 0; ai < abs->size; ai++) {
-                    size_t nlen = abs->names[ai].len;
-                    if (nlen > best_len && pos + nlen <= bytes_len &&
-                        memcmp(tok->begin + pos, abs->names[ai].bytes, nlen) == 0) {
-                        best_idx = (int)ai;
-                        best_len = nlen;
-                    }
-                }
-                if (best_idx < 0) return -1;
-                if (total >= max_out) return -1;
-                out[total++] = (uint8_t)best_idx;
-                pos += best_len;
-            }
-            tokens_found++;
-        }
-        tok_idx++;
+/* Re-pack a single packed pattern under a letter permutation. Each letter
+ * value k is replaced by perm[k] before re-packing. */
+static uint32_t apply_perm_to_packed(uint32_t bits, uint8_t len,
+                                     uint8_t bpl, const uint8_t *perm) {
+    uint32_t out = 0;
+    uint32_t mask = (bpl >= 32) ? ~0u : ((1u << bpl) - 1u);
+    for (uint8_t i = 0; i < len; i++) {
+        uint8_t k = (uint8_t)((bits >> (i * bpl)) & mask);
+        uint8_t pk = perm[k];
+        out |= ((uint32_t)pk & mask) << (i * bpl);
     }
-    return total;
+    return out;
 }
 
-bool markov_encode_algorithm(const struct adef *alg, MarkovAlgorithm *out) {
-    if (alg == NULL || out == NULL) return false;
-    if (alg->abstract_alph == NULL) return false;
-    if (alg->abstract_alph->size == 0 ||
-        alg->abstract_alph->size > MARKOV_MAX_ABSTRACT) return false;
-    if (alg->rules_count > MARKOV_MAX_RULES) return false;
+void markov_apply_permutation(const MarkovAlgorithm *src,
+                              MarkovAlgorithm *dst,
+                              const uint8_t *perm) {
+    if (src == NULL || dst == NULL || perm == NULL) return;
+    if (dst != src) *dst = *src;
+    dst->header.canonical_id = 0;
 
-    memset(out, 0, sizeof(*out));
-    markov_header_init(&out->header,
-        (uint8_t)alg->abstract_alph->size,
-        (uint8_t)alg->rules_count);
-    if (out->header.bits_per_letter == 0) return false;
+    uint8_t bpl = src->header.bits_per_letter;
+    for (uint8_t r = 0; r < src->header.rule_count; r++) {
+        const MarkovRule *in = &src->rules[r];
+        MarkovRule *out = &dst->rules[r];
+        *out = *in;
+        out->pattern_bits =
+            apply_perm_to_packed(in->pattern_bits, in->pattern_len, bpl, perm);
+        out->replacement_bits =
+            apply_perm_to_packed(in->replacement_bits, in->replacement_len, bpl, perm);
+    }
+}
 
-    for (size_t r = 0; r < alg->rules_count; r++) {
-        algorithm_rule *rule = alg->rules[r];
-        if (rule == NULL) return false;
-        MarkovRule *mr = &out->rules[r];
-        memset(mr, 0, sizeof(*mr));
+size_t markov_serialize_rules(const MarkovAlgorithm *a, uint8_t *out, size_t cap) {
+    if (a == NULL || out == NULL) return 0;
+    size_t n = 0;
+    /* Per rule: flags (1) + pattern_len (1) + replacement_len (1) +
+     * pattern_bits (4 LE) + replacement_bits (4 LE) = 11 bytes. */
+    for (uint8_t r = 0; r < a->header.rule_count; r++) {
+        const MarkovRule *rule = &a->rules[r];
+        if (n + 11 > cap) return n;
+        out[n++] = rule->flags;
+        out[n++] = rule->pattern_len;
+        out[n++] = rule->replacement_len;
+        out[n++] = (uint8_t)(rule->pattern_bits & 0xFF);
+        out[n++] = (uint8_t)((rule->pattern_bits >> 8) & 0xFF);
+        out[n++] = (uint8_t)((rule->pattern_bits >> 16) & 0xFF);
+        out[n++] = (uint8_t)((rule->pattern_bits >> 24) & 0xFF);
+        out[n++] = (uint8_t)(rule->replacement_bits & 0xFF);
+        out[n++] = (uint8_t)((rule->replacement_bits >> 8) & 0xFF);
+        out[n++] = (uint8_t)((rule->replacement_bits >> 16) & 0xFF);
+        out[n++] = (uint8_t)((rule->replacement_bits >> 24) & 0xFF);
+    }
+    return n;
+}
 
-        if (rule->is_terminal) mr->flags |= MARKOV_RULE_FLAG_TERMINAL;
-        if (rule->has_emit)    mr->flags |= MARKOV_RULE_FLAG_HAS_EMIT;
+uint64_t markov_hash_rules(const MarkovAlgorithm *a) {
+    uint8_t buf[MARKOV_MAX_RULES * 16];
+    size_t n = markov_serialize_rules(a, buf, sizeof(buf));
+    /* FNV-1a 64-bit */
+    uint64_t h = 0xcbf29ce484222325ULL;
+    for (size_t i = 0; i < n; i++) {
+        h ^= (uint64_t)buf[i];
+        h *= 0x100000001b3ULL;
+    }
+    return h;
+}
 
-        uint8_t pat[32];
-        int n = encode_pattern_letters(rule->pattern, alg->abstract_alph, pat, 32);
-        if (n <= 0) return false;
-        mr->pattern_len = (uint8_t)n;
-        if (!markov_pack_pattern(pat, mr->pattern_len,
-                                 out->header.bits_per_letter, &mr->pattern_bits))
-            return false;
-
-        if (!rule->is_terminal && rule->replacement != NULL) {
-            uint8_t rep[32];
-            int m = encode_pattern_letters(rule->replacement, alg->abstract_alph, rep, 32);
-            if (m < 0) return false;
-            mr->replacement_len = (uint8_t)m;
-            if (!markov_pack_pattern(rep, mr->replacement_len,
-                                     out->header.bits_per_letter, &mr->replacement_bits))
-                return false;
-        }
+/* Generate the next permutation of perm[] in lexicographic order, in place.
+ * Returns true if a next permutation exists, false if perm is the last
+ * (descending) permutation. Standard "next permutation" algorithm. */
+static bool next_permutation(uint8_t *perm, uint8_t n) {
+    if (n < 2) return false;
+    int i = (int)n - 2;
+    while (i >= 0 && perm[i] >= perm[i + 1]) i--;
+    if (i < 0) return false;
+    int j = (int)n - 1;
+    while (perm[j] <= perm[i]) j--;
+    uint8_t tmp = perm[i]; perm[i] = perm[j]; perm[j] = tmp;
+    /* Reverse perm[i+1 .. n-1] */
+    int lo = i + 1, hi = (int)n - 1;
+    while (lo < hi) {
+        tmp = perm[lo]; perm[lo] = perm[hi]; perm[hi] = tmp;
+        lo++; hi--;
     }
     return true;
 }
 
-/* ---------------------------------------------------------------------- */
-/* Printing                                                                */
-/* ---------------------------------------------------------------------- */
+static int byte_compare(const uint8_t *a, size_t na, const uint8_t *b, size_t nb) {
+    size_t m = na < nb ? na : nb;
+    for (size_t i = 0; i < m; i++) {
+        if (a[i] < b[i]) return -1;
+        if (a[i] > b[i]) return 1;
+    }
+    if (na < nb) return -1;
+    if (na > nb) return 1;
+    return 0;
+}
+
+void markov_canonicalize_letters(MarkovAlgorithm *a) {
+    if (a == NULL) return;
+    if (!markov_algorithm_valid(a)) return;
+    uint8_t n = a->header.abstract_size;
+    if (n == 0) return;
+
+    uint8_t perm[MARKOV_MAX_ABSTRACT];
+    uint8_t best_perm[MARKOV_MAX_ABSTRACT];
+    for (uint8_t i = 0; i < n; i++) perm[i] = i;
+    for (uint8_t i = 0; i < n; i++) best_perm[i] = i;
+
+    MarkovAlgorithm cand;
+    uint8_t best_buf[MARKOV_MAX_RULES * 16];
+    uint8_t cand_buf[MARKOV_MAX_RULES * 16];
+    size_t best_len = markov_serialize_rules(a, best_buf, sizeof(best_buf));
+
+    /* Walk all n! permutations starting from identity (already accounted
+     * for as the initial best). next_permutation generates the rest. */
+    while (next_permutation(perm, n)) {
+        markov_apply_permutation(a, &cand, perm);
+        size_t cand_len = markov_serialize_rules(&cand, cand_buf, sizeof(cand_buf));
+        if (byte_compare(cand_buf, cand_len, best_buf, best_len) < 0) {
+            memcpy(best_buf, cand_buf, cand_len);
+            best_len = cand_len;
+            memcpy(best_perm, perm, n);
+        }
+    }
+
+    /* Apply the winning permutation in place and stamp canonical_id. */
+    markov_apply_permutation(a, a, best_perm);
+    a->header.canonical_id = markov_hash_rules(a);
+}
 
 void markov_print_algorithm(const MarkovAlgorithm *a) {
     if (a == NULL) {
         printf("MarkovAlgorithm: <null>\n");
         return;
     }
-    printf("MarkovAlgorithm v%u.%u abstract_size=%u rule_count=%u bits_per_letter=%u flags=0x%04x\n",
+    printf("MarkovAlgorithm v%u.%u abstract_size=%u rule_count=%u bits_per_letter=%u flags=0x%04x canonical_id=0x%016llx\n",
         a->header.version_major, a->header.version_minor,
         a->header.abstract_size, a->header.rule_count,
-        a->header.bits_per_letter, a->header.flags);
+        a->header.bits_per_letter, a->header.flags,
+        (unsigned long long)a->header.canonical_id);
 
     uint8_t bpl = a->header.bits_per_letter;
     for (uint8_t r = 0; r < a->header.rule_count; r++) {

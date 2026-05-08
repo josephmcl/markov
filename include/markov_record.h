@@ -192,3 +192,31 @@ bool markov_encode_algorithm(const struct adef *alg, MarkovAlgorithm *out);
 /* Pretty-print a record to stdout, one line per rule plus a header line.
  * Format mirrors the textual form of the rules for easy verification. */
 void markov_print_algorithm(const MarkovAlgorithm *a);
+
+/* ---------------------------------------------------------------------- */
+/* Canonicalisation                                                        */
+/* ---------------------------------------------------------------------- */
+
+/* Apply a letter permutation σ to every rule in src, writing the result to
+ * dst. perm has abstract_size entries; perm[i] is σ(i). The header is copied
+ * unchanged except that the canonical_id is cleared. dst may alias src. */
+void markov_apply_permutation(const MarkovAlgorithm *src,
+                              MarkovAlgorithm *dst,
+                              const uint8_t *perm);
+
+/* Serialise an algorithm's rule list deterministically to a byte buffer.
+ * Used as the canonical-form key (for both lex-min comparison across
+ * permutations and hashing into canonical_id). Returns the number of bytes
+ * written. The output covers rule data only; the header is excluded so that
+ * canonically-equal rule lists hash equal regardless of header metadata. */
+size_t markov_serialize_rules(const MarkovAlgorithm *a, uint8_t *out, size_t cap);
+
+/* Compute a 64-bit fingerprint of an algorithm's serialized rule list using
+ * FNV-1a. Stable across runs and platforms. */
+uint64_t markov_hash_rules(const MarkovAlgorithm *a);
+
+/* Letter-permutation canonicalization: rewrite the algorithm in place to
+ * its lexicographically-smallest letter relabeling, and set canonical_id
+ * to the FNV-1a hash of that canonical form. Rule order is preserved
+ * (rule-reordering canonicalization is a separate step). */
+void markov_canonicalize_letters(MarkovAlgorithm *a);
