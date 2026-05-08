@@ -32,3 +32,24 @@ size_t markov_enumerate(uint8_t alphabet_size,
 size_t markov_rule_shape_count(uint8_t alphabet_size,
                                uint8_t max_pattern_len,
                                uint8_t max_repl_len);
+
+/* Total search-space size: shapes^rule_count. */
+size_t markov_total_count(uint8_t alphabet_size,
+                          uint8_t rule_count,
+                          uint8_t max_pattern_len,
+                          uint8_t max_repl_len);
+
+/* Indexed enumeration: directly construct the algorithm at lex-order
+ * position `index` (0 ≤ index < markov_total_count(...)). Each rule slot
+ * k is set to shape (index / shapes^k) % shapes. If `rule_indices_out`
+ * is non-NULL, the per-rule shape indices are written there.
+ *
+ * This is the parallel-friendly form: any thread can compute the algorithm
+ * at any index without coordinating with other threads. */
+bool markov_enumerate_at(MarkovAlgorithm *out,
+                         size_t index,
+                         uint8_t alphabet_size,
+                         uint8_t rule_count,
+                         uint8_t max_pattern_len,
+                         uint8_t max_repl_len,
+                         uint16_t *rule_indices_out);

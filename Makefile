@@ -41,10 +41,10 @@ headers = $(wildcard $(header_directory)/*.h)
 headers_emcc = $(wildcard $(header_directory)/*.h)
 
 objects_native_ = $(sources_all:$(source_directory)/%.c=$(native_object_directory)/%.o)
-objects_native = $(filter-out $(native_object_directory)/emcc.o,$(objects_native_))
+objects_native = $(filter-out $(native_object_directory)/emcc.o $(native_object_directory)/enumerate_main.o $(native_object_directory)/verify_records_main.o,$(objects_native_))
 
 objects_wasm_ = $(sources_all:$(source_directory)/%.c=$(wasm_object_directory)/%.o)
-objects_wasm = $(filter-out $(wasm_object_directory)/main.o,$(objects_wasm_))
+objects_wasm = $(filter-out $(wasm_object_directory)/main.o $(wasm_object_directory)/enumerate_main.o $(wasm_object_directory)/verify_records_main.o,$(objects_wasm_))
 
 
 nil := 
@@ -62,9 +62,54 @@ define speaker
 	@$(1)
 endef
 
-all: native wasm
+all: native wasm enumerate verify_records
 
 native: $(binary_directory)/$(target)
+
+# OpenMP support: set OPENMP=1 to enable parallel enumeration.
+# Apple clang doesn't ship libomp, so we use Homebrew's libomp explicitly.
+# On Linux/GCC the simpler -fopenmp flag suffices.
+ifeq ($(OPENMP),1)
+  OPENMP_DEFINES := -DENUM_USE_OPENMP
+  OPENMP_CFLAGS  := -fopenmp
+  OPENMP_LDFLAGS := -fopenmp
+else
+  OPENMP_DEFINES :=
+  OPENMP_CFLAGS  :=
+  OPENMP_LDFLAGS :=
+endif
+
+enumerate: $(binary_directory)/enumerate
+verify_records: $(binary_directory)/verify_records
+
+enumerate_objs = $(native_object_directory)/enumerate_main.o \
+                 $(native_object_directory)/markov_record.o \
+                 $(native_object_directory)/markov_enumerate.o \
+                 $(native_object_directory)/markov_observer.o \
+                 $(native_object_directory)/markov_linearity.o \
+                 $(native_object_directory)/markov_records.o
+
+verify_objs = $(native_object_directory)/verify_records_main.o \
+              $(native_object_directory)/markov_record.o \
+              $(native_object_directory)/markov_records.o
+
+$(native_object_directory)/enumerate_main.o: $(source_directory)/enumerate_main.c
+	mkdir -p $(native_object_directory)
+	$(call speaker,\
+	$(cc) $(compiler_flags) $(OPENMP_DEFINES) $(OPENMP_CFLAGS) -c $< -o $@ $(includes))
+
+$(native_object_directory)/verify_records_main.o: $(source_directory)/verify_records_main.c
+	mkdir -p $(native_object_directory)
+	$(call speaker,\
+	$(cc) $(compiler_flags) -c $< -o $@ $(includes))
+
+$(binary_directory)/enumerate: $(enumerate_objs)
+	$(call speaker,\
+	$(cc) $(enumerate_objs) -o $@ $(libraries) $(OPENMP_LDFLAGS))
+
+$(binary_directory)/verify_records: $(verify_objs)
+	$(call speaker,\
+	$(cc) $(verify_objs) -o $@ $(libraries))
 
 $(binary_directory)/$(target): $(bison_object_native) $(objects_native) 
 	$(call speaker,\

@@ -98,6 +98,50 @@ static bool fill_rule_from_shape(MarkovRule *out,
     return false;
 }
 
+size_t markov_total_count(uint8_t alphabet_size,
+                          uint8_t rule_count,
+                          uint8_t max_pattern_len,
+                          uint8_t max_repl_len) {
+    size_t shapes = markov_rule_shape_count(alphabet_size, max_pattern_len, max_repl_len);
+    if (shapes == 0) return 0;
+    size_t total = 1;
+    for (uint8_t k = 0; k < rule_count; k++) total *= shapes;
+    return total;
+}
+
+bool markov_enumerate_at(MarkovAlgorithm *out,
+                         size_t index,
+                         uint8_t alphabet_size,
+                         uint8_t rule_count,
+                         uint8_t max_pattern_len,
+                         uint8_t max_repl_len,
+                         uint16_t *rule_indices_out) {
+    if (out == NULL) return false;
+    if (rule_count > MARKOV_MAX_RULES) return false;
+    if (alphabet_size == 0 || alphabet_size > MARKOV_MAX_ABSTRACT) return false;
+
+    memset(out, 0, sizeof(*out));
+    markov_header_init(&out->header, alphabet_size, rule_count);
+    uint8_t bpl = out->header.bits_per_letter;
+    if (bpl == 0) return false;
+
+    size_t shapes = markov_rule_shape_count(alphabet_size, max_pattern_len, max_repl_len);
+    if (shapes == 0) return false;
+
+    for (uint8_t k = 0; k < rule_count; k++) {
+        size_t shape_idx = index % shapes;
+        index /= shapes;
+        if (rule_indices_out != NULL) {
+            rule_indices_out[k] = (uint16_t)shape_idx;
+        }
+        if (!fill_rule_from_shape(&out->rules[k], shape_idx, alphabet_size,
+                                   max_pattern_len, max_repl_len, bpl)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 size_t markov_enumerate(uint8_t alphabet_size,
                         uint8_t rule_count,
                         uint8_t max_pattern_len,
